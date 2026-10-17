@@ -504,7 +504,7 @@ export default function ProjectorDisplay() {
       {/* ============================================================== */}
       {/* 1. PERSISTENT BRANDING: CLEAN FLAG-STYLE HEADER AT TOP         */}
       {/* ============================================================== */}
-      <header className="h-16 px-6 lg:px-12 flex items-center justify-between shrink-0 z-30 border-b border-zinc-800/80 bg-[#0c0d0e]">
+      <header className={`${isFullscreen ? 'hidden' : 'h-16 px-6 lg:px-12 flex items-center justify-between shrink-0 z-30 border-b border-zinc-800/80 bg-[#0c0d0e]'}`}>
         {/* Flag-Style Branding Element */}
         <div className="flex items-center gap-3.5">
           <img
@@ -615,10 +615,27 @@ export default function ProjectorDisplay() {
         </div>
       </header>
 
+      {/* Floating Exit Fullscreen button (available when header is hidden in fullscreen) */}
+      {isFullscreen && (
+        <button
+          onClick={toggleFullscreen}
+          title="Exit Fullscreen (Esc or F)"
+          className="fixed top-4 right-4 z-50 p-2.5 rounded-full bg-black/60 hover:bg-black/90 text-zinc-400 hover:text-white border border-white/10 hover:border-white/30 backdrop-blur-md transition-all duration-200 opacity-60 hover:opacity-100 shadow-xl"
+        >
+          <Minimize2 className="w-4 h-4" />
+        </button>
+      )}
+
       {/* ============================================================== */}
       {/* 2. MAIN 16:9 PRESENTATION CANVAS                               */}
       {/* ============================================================== */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-6 lg:py-8 flex items-center justify-center overflow-hidden">
+      <main
+        className={`w-full flex items-center justify-center overflow-hidden transition-all duration-300 ${
+          isFullscreen
+            ? 'h-screen w-screen p-0 m-0 max-w-none'
+            : 'flex-1 max-w-7xl mx-auto px-6 py-6 lg:py-8'
+        }`}
+      >
         
         {/* ============================================================== */}
         {/* VIEW A: REDESIGNED START / WELCOME SCREEN                      */}
@@ -915,25 +932,104 @@ export default function ProjectorDisplay() {
             </div>
           ) : (
             /* Centred Player Card (Only 4 Items: Photo, Name, Designation, Base Price) */
-            <div className="relative w-full max-w-5xl h-full max-h-[calc(100vh-140px)] flex items-center justify-center">
+            <div className={`relative w-full flex items-center justify-center transition-all duration-300 ${
+              isFullscreen
+                ? 'w-[92vw] h-[85vh] max-w-[1780px] max-h-[920px]'
+                : 'max-w-5xl h-full max-h-[calc(100vh-140px)]'
+            }`}>
               
               {/* The Player Card Container */}
               <div
-                className={`relative w-full rounded-2xl p-6 sm:p-8 md:p-10 lg:p-12 border bg-[#151618] overflow-hidden flex flex-col md:flex-row items-center gap-8 lg:gap-14 shadow-2xl transition-all duration-300 ${
+                className={`relative w-full h-full rounded-[28px] border overflow-hidden flex flex-col md:flex-row items-center transition-all duration-300 ${
+                  isFullscreen
+                    ? 'p-8 sm:p-10 lg:p-12 xl:p-14 gap-8 lg:gap-12 xl:gap-16 justify-between'
+                    : 'p-6 sm:p-8 md:p-10 lg:p-12 gap-8 lg:gap-14'
+                } shadow-2xl ${
                   status === 'sold'
-                    ? 'border-red-600/60 ring-2 ring-red-500/20'
+                    ? 'bg-[#151618] border-red-600/60 ring-2 ring-red-500/20'
                     : status === 'bidding'
-                    ? 'border-emerald-500/50 ring-2 ring-emerald-500/10'
-                    : 'border-zinc-800'
+                    ? 'bg-gradient-to-br from-[#06143d] via-[#040d28] to-[#020514] border-blue-500/50 ring-2 ring-blue-500/20 shadow-[0_0_60px_rgba(30,64,175,0.35)]'
+                    : 'bg-gradient-to-br from-[#06143d] via-[#040d28] to-[#020514] border-blue-600/30 shadow-[0_0_50px_rgba(4,13,40,0.85)]'
                 }`}
               >
-                {/* Subtle HFPL Logo Watermark inside player card */}
-                {/* Positioned safely in bottom-right corner at low opacity so it never obstructs face or text */}
+                {/* Subdued Stadium-inspired Lighting & Restrained Background Details (only for active/normal player card) */}
+                {status !== 'sold' && (
+                  <>
+                    {/* Top-Left Diagonal Blue & Gold Ribbon Accents (Matching approved reference) */}
+                    <div className="absolute -top-12 -left-12 w-40 h-40 pointer-events-none select-none z-0 overflow-hidden">
+                      <div className="w-full h-full relative -rotate-45 origin-center">
+                        <div className="absolute top-6 left-0 right-0 h-4 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 opacity-90 shadow-sm" />
+                        <div className="absolute top-11 left-0 right-0 h-2 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-600 shadow-md" />
+                      </div>
+                    </div>
+
+                    {/* Bottom-Left Diagonal Blue & Gold Ribbon Accents */}
+                    <div className="absolute -bottom-10 -left-10 w-36 h-36 pointer-events-none select-none z-0 overflow-hidden">
+                      <div className="w-full h-full relative rotate-45 origin-center">
+                        <div className="absolute bottom-6 left-0 right-0 h-3 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 opacity-80" />
+                        <div className="absolute bottom-10 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500" />
+                      </div>
+                    </div>
+
+                    {/* Stadium Floodlight Grid: Bottom-Left */}
+                    <div className="absolute bottom-4 left-6 pointer-events-none select-none z-0 opacity-25 hidden sm:block">
+                      <div className="grid grid-cols-4 gap-2">
+                        {Array.from({ length: 16 }).map((_, i) => (
+                          <span
+                            key={`bl-${i}`}
+                            className="w-1.5 h-1.5 rounded-full bg-blue-400"
+                            style={{ opacity: 0.25 + ((i % 4) * 0.2) }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Stadium Floodlight Grid: Bottom-Right */}
+                    <div className="absolute bottom-5 right-6 pointer-events-none select-none z-0 opacity-25 hidden sm:block">
+                      <div className="grid grid-cols-5 gap-2 rotate-12">
+                        {Array.from({ length: 20 }).map((_, i) => (
+                          <span
+                            key={`br-${i}`}
+                            className="w-1.5 h-1.5 rounded-full bg-blue-300"
+                            style={{ opacity: 0.15 + ((i % 5) * 0.16) }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Card Header (Top-Right): HFPL 2027 | LIVE AUCTION & Official HFPL Crest */}
+                    <div className={`absolute ${isFullscreen ? 'top-6 right-8 sm:top-8 sm:right-10' : 'top-5 right-6 sm:top-6 sm:right-8'} flex items-center gap-3 sm:gap-4 z-20`}>
+                      <div className="flex items-center text-xs sm:text-sm font-semibold tracking-wider">
+                        <span className={`text-white font-extrabold tracking-widest ${isFullscreen ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'}`}>HFPL</span>
+                        <span className={`text-amber-400 font-extrabold ml-1.5 ${isFullscreen ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'}`}>2027</span>
+                        <span className="text-zinc-600 mx-2.5 sm:mx-3 text-xs">|</span>
+                        <span className={`inline-flex items-center gap-1.5 text-zinc-300 tracking-[0.22em] ${isFullscreen ? 'text-[11px] sm:text-xs' : 'text-[10px] sm:text-[11px]'} uppercase font-bold`}>
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          LIVE AUCTION
+                        </span>
+                      </div>
+                      <img
+                        src={hfplLogo}
+                        alt="HFPL"
+                        className={`${isFullscreen ? 'w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20' : 'w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16'} object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.6)]`}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* HFPL Logo Watermark inside player card */}
+                {/* Positioned safely behind player details on the right half at low opacity so it never obstructs face or text */}
                 <img
                   src={hfplLogo}
                   alt=""
                   aria-hidden="true"
-                  className="absolute right-4 bottom-4 w-48 h-48 md:w-64 md:h-64 object-contain opacity-[0.045] pointer-events-none select-none z-0"
+                  className={`absolute pointer-events-none select-none z-0 ${
+                    status === 'sold'
+                      ? 'right-4 bottom-4 w-48 h-48 md:w-64 md:h-64 object-contain opacity-[0.045]'
+                      : isFullscreen
+                      ? 'right-8 md:right-16 top-1/2 -translate-y-1/2 w-80 h-80 lg:w-[440px] lg:h-[440px] object-contain opacity-[0.09]'
+                      : 'right-6 md:right-12 top-1/2 -translate-y-1/2 w-64 h-64 md:w-80 md:h-80 object-contain opacity-[0.09]'
+                  }`}
                 />
 
                 {/* Restrained green accent streaks during active bidding */}
@@ -941,19 +1037,29 @@ export default function ProjectorDisplay() {
                   <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent" />
                 )}
 
-                {/* 1. PLAYER PHOTOGRAPH (Main visual element with corner stamp & neat label below) */}
+                {/* 1. PLAYER PHOTOGRAPH (Main visual element with refined blue-and-gold border & corner stamps) */}
                 <div className="flex flex-col items-center shrink-0 z-10">
                   <div className="relative">
-                    {/* Photo frame */}
-                    <div className="w-64 h-72 sm:w-72 sm:h-80 md:w-80 md:h-96 lg:w-[380px] lg:h-[460px] rounded-xl overflow-hidden border border-zinc-700/60 bg-zinc-900 shadow-md">
-                      <img
-                        src={resolveImageUrl(player.photo) || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&auto=format&fit=crop&q=80'}
-                        alt={player.name}
-                        className="w-full h-full object-cover object-top"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&auto=format&fit=crop&q=80';
-                        }}
-                      />
+                    {/* Refined blue-and-gold border frame matching reference */}
+                    <div className={`p-[2.5px] rounded-[22px] transition-all duration-300 ${
+                      status === 'sold'
+                        ? 'border border-zinc-700/60 bg-zinc-900 shadow-md'
+                        : 'bg-gradient-to-tr from-[#1d4ed8] via-[#38bdf8] to-[#fbbf24] shadow-[0_0_28px_rgba(245,158,11,0.22),0_0_36px_rgba(29,78,216,0.25)]'
+                    }`}>
+                      <div className={`rounded-[20px] overflow-hidden bg-zinc-950 transition-all duration-300 ${
+                        isFullscreen
+                          ? 'w-[clamp(280px,27vw,450px)] h-[clamp(340px,54vh,540px)]'
+                          : 'w-64 h-72 sm:w-72 sm:h-80 md:w-80 md:h-96 lg:w-[380px] lg:h-[460px]'
+                      }`}>
+                        <img
+                          src={resolveImageUrl(player.photo) || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&auto=format&fit=crop&q=80'}
+                          alt={player.name}
+                          className="w-full h-full object-cover object-top"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&auto=format&fit=crop&q=80';
+                          }}
+                        />
+                      </div>
                     </div>
 
                     {/* SOLD STAMP: Compact, placed near bottom edge overlapping lower-right corner. Face is 100% visible */}
@@ -989,33 +1095,53 @@ export default function ProjectorDisplay() {
                 </div>
 
                 {/* 2, 3, 4: PLAYER DETAILS (Name, Designation, Base Price, Current Bid) */}
-                <div className="flex-1 flex flex-col justify-center text-left space-y-5 lg:space-y-7 z-10 w-full">
+                <div className={`flex-1 flex flex-col justify-center text-left transition-all duration-300 z-10 w-full ${
+                  isFullscreen ? 'space-y-5 lg:space-y-7' : 'space-y-4 lg:space-y-6'
+                }`}>
                   
                   {/* 3. PLAYER DESIGNATION (Batter, Bowler, All-rounder, Wicketkeeper) */}
                   <div>
                     <div className="inline-flex items-center gap-2.5">
                       {status === 'bidding' ? (
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2.5 h-2.5'} rounded-full bg-emerald-500 animate-pulse shrink-0`} />
                       ) : status === 'sold' ? (
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2.5 h-2.5'} rounded-full bg-red-500 shrink-0`} />
                       ) : (
-                        <span className="w-2 h-2 rounded-full bg-zinc-600 shrink-0" />
+                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2.5 h-2.5'} rounded-full bg-amber-400 shadow-[0_0_10px_#f59e0b] shrink-0`} />
                       )}
-                      <span className="text-xl sm:text-2xl lg:text-3xl font-medium tracking-wide text-zinc-300">
+                      <span className={`${isFullscreen ? 'text-2xl sm:text-3xl lg:text-4xl' : 'text-xl sm:text-2xl lg:text-3xl'} font-medium tracking-wide text-zinc-100`}>
                         {player.category}
                       </span>
                     </div>
+                    {/* Gold accent underline beneath designation */}
+                    {status !== 'sold' && (
+                      <div className={`${isFullscreen ? 'w-20 h-[3px]' : 'w-14 h-[2px]'} bg-gradient-to-r from-amber-400 via-amber-300 to-transparent rounded-full mt-2`} />
+                    )}
                   </div>
 
                   {/* 2. PLAYER NAME (Prominent, High-Contrast Typography) */}
                   <div>
-                    <h2 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-white leading-tight">
+                    <h2 className={`${
+                      isFullscreen
+                        ? 'text-6xl sm:text-7xl lg:text-8xl xl:text-9xl'
+                        : 'text-5xl sm:text-6xl lg:text-7xl xl:text-8xl'
+                    } font-black tracking-tight text-white leading-tight drop-shadow-sm`}>
                       {player.name}
                     </h2>
                   </div>
 
+                  {/* Luminous Gold Horizontal Divider with Center Glow Flare */}
+                  {status !== 'sold' ? (
+                    <div className={`relative w-full ${isFullscreen ? 'my-3 sm:my-5 xl:my-6' : 'my-1 sm:my-2'} flex items-center justify-center`}>
+                      <div className="absolute inset-x-8 h-3 bg-gradient-to-r from-transparent via-amber-400/30 to-transparent blur-md pointer-events-none" />
+                      <div className="relative w-full h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/80 to-transparent" />
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t border-zinc-800/80 w-full" />
+                  )}
+
                   {/* 4. BASE PRICE & FINAL SALE DETAILS / LIVE BID */}
-                  <div className="pt-4 lg:pt-6 border-t border-zinc-800/80 w-full">
+                  <div className="w-full">
                     {status === 'sold' ? (
                       <div className="space-y-4 w-full">
                         {/* Compact Base Price and Status header */}
@@ -1035,7 +1161,7 @@ export default function ProjectorDisplay() {
                             className={`relative w-full rounded-2xl transition-transform duration-700 ease-out transform-style-3d ${
                               isFlipped ? 'rotate-y-180' : ''
                             }`}
-                            style={{ minHeight: '175px' }}
+                            style={{ minHeight: isFullscreen ? '210px' : '175px' }}
                           >
                             {/* 1. FRONT SIDE (Pre-flip State: Hammer down / Confirming sale) */}
                             <div className="absolute inset-0 backface-hidden rounded-2xl bg-zinc-900/90 border border-red-500/30 p-5 flex flex-col items-center justify-center text-center shadow-xl">
@@ -1115,34 +1241,47 @@ export default function ProjectorDisplay() {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8 items-start">
+                      <div className="flex items-center justify-between w-full">
                         {/* BASE PRICE */}
-                        <div>
-                          <span className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-zinc-400 block mb-1">
-                            Base Price
+                        <div className="flex-1">
+                          <span className={`${
+                            isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[11px] sm:text-xs'
+                          } font-bold uppercase tracking-[0.2em] text-zinc-400 block mb-1`}>
+                            BASE PRICE
                           </span>
-                          <div className="flex items-baseline gap-3">
-                            <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-zinc-300 tracking-tight">
+                          <div className="flex items-baseline">
+                            <span className={`${
+                              isFullscreen ? 'text-4xl sm:text-5xl lg:text-6xl xl:text-7xl' : 'text-3xl sm:text-4xl lg:text-5xl'
+                            } font-black text-white tracking-tight`}>
                               {formatINR(player.basePrice)}
                             </span>
                           </div>
                         </div>
 
-                        {/* LIVE BIDDING or UNSOLD */}
-                        <div>
+                        {/* Thin vertical separator divider line */}
+                        <div className={`w-px ${
+                          isFullscreen ? 'h-16 sm:h-20 lg:h-24 mx-8 sm:mx-12 lg:mx-14' : 'h-14 sm:h-16 mx-6 sm:mx-10'
+                        } bg-gradient-to-b from-transparent via-zinc-600/60 to-transparent shrink-0`} />
+
+                        {/* CURRENT BID or UNSOLD */}
+                        <div className="flex-1">
                           {status === 'unsold' ? (
                             <div>
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-zinc-400 block">
-                                  Status
+                                <span className={`${
+                                  isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[11px] sm:text-xs'
+                                } font-bold uppercase tracking-[0.2em] text-zinc-400 block`}>
+                                  STATUS
                                 </span>
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-zinc-700 text-zinc-300 border border-zinc-600">
                                   UNSOLD
                                 </span>
                               </div>
 
-                              <div className="flex items-baseline gap-3">
-                                <span className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-zinc-400">
+                              <div className="flex items-baseline">
+                                <span className={`${
+                                  isFullscreen ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-2xl sm:text-3xl lg:text-4xl'
+                                } font-bold tracking-tight text-zinc-400`}>
                                   No Bids Placed
                                 </span>
                               </div>
@@ -1150,8 +1289,10 @@ export default function ProjectorDisplay() {
                           ) : (
                             <div>
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-zinc-400 block">
-                                  Current Bid
+                                <span className={`${
+                                  isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[11px] sm:text-xs'
+                                } font-bold uppercase tracking-[0.2em] text-zinc-400 block`}>
+                                  CURRENT BID
                                 </span>
                                 {status === 'bidding' && (
                                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 animate-pulse">
@@ -1160,34 +1301,42 @@ export default function ProjectorDisplay() {
                                 )}
                               </div>
 
-                              <div className="flex items-baseline gap-3">
+                              <div className="flex items-baseline">
                                 <span
-                                  className={`text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight transition-all duration-300 ${
-                                    bidFlashed ? 'text-emerald-400 scale-105' : 'text-white'
+                                  className={`${
+                                    isFullscreen
+                                      ? 'text-4xl sm:text-5xl lg:text-6xl xl:text-7xl'
+                                      : 'text-3xl sm:text-4xl lg:text-5xl'
+                                  } font-black tracking-tight transition-all duration-300 bg-gradient-to-b from-[#fff7c2] via-[#fbbf24] to-[#b45309] bg-clip-text text-transparent drop-shadow-[0_2px_14px_rgba(245,158,11,0.45)] ${
+                                    bidFlashed ? 'scale-105 filter brightness-125' : ''
                                   }`}
                                 >
                                   {highestBidder ? formatINR(currentBid) : formatINR(player.basePrice)}
                                 </span>
                               </div>
 
-                              {/* Leading bidder pill */}
+                              {/* Subtext below current bid: Leading team or Opening bid */}
                               {highestBidder ? (
-                                <div className="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-xs">
+                                <div className={`mt-2 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-zinc-950/80 border border-amber-400/30 ${
+                                  isFullscreen ? 'text-sm' : 'text-xs'
+                                } shadow-sm`}>
                                   {resolveTeamLogo(highestBidder) ? (
                                     <img
                                       src={resolveTeamLogo(highestBidder)}
                                       alt={highestBidder.name}
-                                      className="w-4 h-4 object-contain rounded-full bg-white/10"
+                                      className={`${isFullscreen ? 'w-5 h-5' : 'w-4 h-4'} object-contain rounded-full bg-white/10`}
                                       onError={(e) => { e.target.style.display = 'none'; }}
                                     />
                                   ) : (
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                                    <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
                                   )}
                                   <span className="text-zinc-400">Leading:</span>
-                                  <span className="font-semibold text-white">{highestBidder.name}</span>
+                                  <span className="font-bold text-white">{highestBidder.name}</span>
                                 </div>
                               ) : (
-                                <div className="mt-2 text-xs text-zinc-500 font-medium">
+                                <div className={`mt-1.5 ${
+                                  isFullscreen ? 'text-sm sm:text-base' : 'text-xs sm:text-sm'
+                                } text-zinc-400 font-medium`}>
                                   Opening bid: {formatINR(player.basePrice)}
                                 </div>
                               )}
@@ -1207,7 +1356,7 @@ export default function ProjectorDisplay() {
       </main>
 
       {/* Persistent Minimal Bottom Bar (Clean, no dashboard widgets) */}
-      <footer className="h-10 px-8 flex items-center justify-between text-[11px] text-zinc-500 border-t border-zinc-900 bg-[#0c0d0e]">
+      <footer className={`${isFullscreen ? 'hidden' : 'h-10 px-8 flex items-center justify-between text-[11px] text-zinc-500 border-t border-zinc-900 bg-[#0c0d0e]'}`}>
         <span>HFPL Cricket Auction • Projector View</span>
         <span>Press <kbd className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">F</kbd> for Fullscreen</span>
       </footer>
