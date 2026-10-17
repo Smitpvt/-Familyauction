@@ -1,11 +1,12 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const path = require('path');
 const connectDB = require('./config/db');
 const socketModule = require('./socket');
+const { isCloudinaryConfigured } = require('./config/cloudinary');
 
 // Initialize app & server
 const app = express();
@@ -130,5 +131,6 @@ server.listen(PORT, () => {
   console.log(`  HFPL CRICKET AUCTION SERVER RUNNING`);
   console.log(`  PORT: ${PORT}`);
   console.log(`  URL: http://localhost:${PORT}`);
+  console.log(`  CLOUDINARY: ${isCloudinaryConfigured() ? 'Configured' : 'Not configured (uploads will return error)'}`);
   console.log(`===============================================`);
 });

@@ -318,7 +318,7 @@ export default function AdminPanel({ onLogout }) {
         showMessage('Photo uploaded successfully!');
       }
     } catch (err) {
-      showMessage('Failed to upload image.', 'error');
+      showMessage(err.response?.data?.message || 'Failed to upload image.', 'error');
     }
   };
 
