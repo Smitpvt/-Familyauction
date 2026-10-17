@@ -1,0 +1,15 @@
+{
+  "name": "hfpl-cricket-auction",
+  "version": "1.0.0",
+  "description": "HFPL Cricket Player Auction System - IPL Style Projector and Admin Panel",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm start",
+    "client": "cd client && npm run dev",
+    "seed": "cd server && npm run seed",
+    "install:all": "cd server && npm install && cd ../client && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  }
+}
