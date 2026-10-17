@@ -1,0 +1,101 @@
+# ==============================================================================
+# HFPL Cricket Auction - Unified Root .gitignore (Client & Server)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Environment files and secrets (all variants across root, client, server)
+# ------------------------------------------------------------------------------
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+**/*.env
+.env.example
+.env.example.*
+*.env.example
+**/.env.example
+**/*.env.example
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# ------------------------------------------------------------------------------
+# 2. Dependencies (root, client, server, and nested)
+# ------------------------------------------------------------------------------
+node_modules/
+**/node_modules/
+
+# ------------------------------------------------------------------------------
+# 3. Production build output
+# ------------------------------------------------------------------------------
+dist/
+**/dist/
+client/dist/
+server/dist/
+dist-ssr/
+**/dist-ssr/
+build/
+**/build/
+
+# ------------------------------------------------------------------------------
+# 4. Logs and temporary files
+# ------------------------------------------------------------------------------
+logs/
+**/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------------------------------------------------------
+# 5. Cache and temporary directories
+# ------------------------------------------------------------------------------
+.cache/
+**/.cache/
+.eslintcache
+.parcel-cache/
+.temp/
+.tmp/
+*.tmp
+*.temp
+
+# ------------------------------------------------------------------------------
+# 6. Test coverage artifacts
+# ------------------------------------------------------------------------------
+coverage/
+**/coverage/
+*.lcov
+.nyc_output/
+
+# ------------------------------------------------------------------------------
+# 7. Editor and IDE configurations
+# ------------------------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+**/.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ------------------------------------------------------------------------------
+# 8. Operating system files
+# ------------------------------------------------------------------------------
+.DS_Store
+**/.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+**/Thumbs.db
