@@ -122,6 +122,8 @@ export default function ProjectorDisplay() {
   const [showGreenSweep, setShowGreenSweep] = useState(false);
 
   const containerRef = useRef(null);
+  const lastCelebratedPlayerIdRef = useRef(null);
+  const lastUnsoldPlayerIdRef = useRef(null);
 
   // Currency Formatter
   const formatINR = (val) => {
@@ -132,8 +134,44 @@ export default function ProjectorDisplay() {
     }).format(val || 0);
   };
 
-  // Fetch auction state & rounds
-  const fetchState = async () => {
+  // Authoritative View Resolver: decides whether to show Start Screen or Live Auction
+  const resolveViewFromState = (backendState, stats) => {
+    if (!backendState || !backendState.currentPlayer) {
+      return 'welcome';
+    }
+
+    const cpStatus = backendState.currentPlayer?.status;
+    const auctionStatus = backendState.status;
+
+    // 1. If currently in SOLD or UNSOLD status -> restore live auction view
+    if (auctionStatus === 'sold' || cpStatus === 'sold' || auctionStatus === 'unsold' || cpStatus === 'unsold') {
+      return 'auction';
+    }
+
+    // 2. If actively bidding or paused -> restore live auction view
+    if (auctionStatus === 'bidding' || auctionStatus === 'paused') {
+      return 'auction';
+    }
+
+    // 3. If in ready status:
+    if (auctionStatus === 'ready') {
+      const hasProgress = (stats?.soldPlayers > 0) ||
+                          (stats?.unsoldPlayers > 0) ||
+                          (backendState.bidHistory && backendState.bidHistory.length > 0) ||
+                          Boolean(backendState.highestBidder) ||
+                          sessionStorage.getItem('hfpl_projector_started') === 'true' ||
+                          localStorage.getItem('hfpl_projector_started') === 'true';
+      if (hasProgress) {
+        return 'auction';
+      }
+    }
+
+    // 4. Default: auction has not started yet
+    return 'welcome';
+  };
+
+  // Fetch auction state & rounds from authoritative backend API
+  const fetchState = async (isInitialMount = false) => {
     try {
       const [stateRes, roundsRes] = await Promise.all([
         auctionAPI.getState(),
@@ -141,7 +179,27 @@ export default function ProjectorDisplay() {
       ]);
 
       if (stateRes.data.success) {
-        setAuctionData(stateRes.data);
+        const fullData = stateRes.data;
+        setAuctionData(fullData);
+
+        const bState = fullData.state;
+        const bStats = fullData.stats;
+
+        // On initial page load or browser refresh, determine which view to display
+        if (isInitialMount) {
+          const targetView = resolveViewFromState(bState, bStats);
+          setCurrentView(targetView);
+
+          // If the player is already sold in persisted state, record their ID
+          // so reconnection or socket refresh never plays confetti/sound for an already-sold player
+          if ((bState?.status === 'sold' || bState?.currentPlayer?.status === 'sold') && bState?.currentPlayer?._id) {
+            lastCelebratedPlayerIdRef.current = String(bState.currentPlayer._id);
+            setIsFlipped(true);
+          }
+          if ((bState?.status === 'unsold' || bState?.currentPlayer?.status === 'unsold') && bState?.currentPlayer?._id) {
+            lastUnsoldPlayerIdRef.current = String(bState.currentPlayer._id);
+          }
+        }
       }
       if (roundsRes.data.success) {
         setRoundsList(roundsRes.data.rounds || []);
@@ -193,15 +251,16 @@ export default function ProjectorDisplay() {
   };
 
   useEffect(() => {
-    fetchState();
+    // Initial mount: fetch persisted state and resolve initial view
+    fetchState(true);
 
     const socket = getSocket();
 
     // Listen for state updates
     const handleStateUpdate = (data) => {
       setAuctionData(data);
-      // Auto-switch to auction view if active live bidding is started by admin
-      if (data.state?.status === 'bidding') {
+      // Auto-switch to auction view if active bidding, sold, or unsold initiated by admin
+      if (data.state?.status === 'bidding' || data.state?.status === 'sold' || data.state?.status === 'unsold') {
         setCurrentView('auction');
       }
     };
@@ -213,24 +272,45 @@ export default function ProjectorDisplay() {
       setTimeout(() => setBidFlashed(false), 750);
     };
 
-    // Listen for SOLD event
-    const handlePlayerSold = () => {
+    // Listen for SOLD event (strictly runs celebrations only on genuine incoming socket events)
+    const handlePlayerSold = (payload) => {
+      const soldPlayerId = payload?.player?.id || payload?.player?._id;
+      if (soldPlayerId && lastCelebratedPlayerIdRef.current === String(soldPlayerId)) {
+        // Prevent duplicate celebrations on reconnection or redundant event
+        return;
+      }
+      if (soldPlayerId) {
+        lastCelebratedPlayerIdRef.current = String(soldPlayerId);
+      }
+
       playSoldSound();
       triggerSoldConfetti();
+      setShowGreenSweep(true);
+      setTimeout(() => setShowGreenSweep(false), 1200);
+
+      setIsFlipped(true);
       setCurrentView('auction');
-      fetchState();
+      fetchState(false);
     };
 
     // Listen for UNSOLD event
-    const handlePlayerUnsold = () => {
+    const handlePlayerUnsold = (payload) => {
+      const unsoldPlayerId = payload?.player?.id || payload?.player?._id;
+      if (unsoldPlayerId && lastUnsoldPlayerIdRef.current === String(unsoldPlayerId)) {
+        return;
+      }
+      if (unsoldPlayerId) {
+        lastUnsoldPlayerIdRef.current = String(unsoldPlayerId);
+      }
+
       playUnsoldSound();
       setCurrentView('auction');
-      fetchState();
+      fetchState(false);
     };
 
     // Listen for PLAYER_DELETED event
     const handlePlayerDeleted = () => {
-      fetchState();
+      fetchState(false);
     };
 
     socket.on('AUCTION_STATE_UPDATE', handleStateUpdate);
@@ -299,6 +379,10 @@ export default function ProjectorDisplay() {
   // Handler: Complete Countdown & Transition to Live Auction
   const handleCountdownComplete = async () => {
     setIsCountingDown(false);
+    try {
+      sessionStorage.setItem('hfpl_projector_started', 'true');
+      localStorage.setItem('hfpl_projector_started', 'true');
+    } catch (e) {}
 
     // 1. If auction is already running, reconnect to existing session without starting a new one
     try {
@@ -319,7 +403,7 @@ export default function ProjectorDisplay() {
     if (set1) {
       try {
         await auctionAPI.setRound(set1._id);
-        await fetchState();
+        await fetchState(false);
       } catch (err) {
         console.error('Error setting round:', err);
       }
@@ -375,41 +459,18 @@ export default function ProjectorDisplay() {
     : (state?.currentBid || (player ? player.basePrice : 0));
   const currentRound = state?.currentRound;
 
-  // Handle SOLD celebration animation cleanly and strictly once per completed sale
+  // Maintain card flip state for SOLD players without firing audio or confetti on page reload
   useEffect(() => {
-    if (status === 'sold' && player?._id) {
-      if (soldAnimationPlayerId !== player._id) {
-        // Trigger reveal only once per completed sale
-        setSoldAnimationPlayerId(player._id);
-        setIsFlipped(false);
-        setShowGreenSweep(true);
-
-        playSoldSound();
-        triggerSoldConfetti();
-
-        // Smooth 3D flip triggers after brief dramatic pause (300ms)
-        const flipTimer = setTimeout(() => {
-          setIsFlipped(true);
-        }, 300);
-
-        // Green sweep finishes after 1100ms
-        const sweepTimer = setTimeout(() => {
-          setShowGreenSweep(false);
-        }, 1100);
-
-        return () => {
-          clearTimeout(flipTimer);
-          clearTimeout(sweepTimer);
-        };
-      } else {
-        // Keep final SOLD screen visible until admin advances
-        setIsFlipped(true);
+    if (status === 'sold') {
+      setIsFlipped(true);
+    } else {
+      setIsFlipped(false);
+      setShowGreenSweep(false);
+      if (player?._id && lastCelebratedPlayerIdRef.current === String(player._id)) {
+        lastCelebratedPlayerIdRef.current = null;
       }
-    } else if (status !== 'sold') {
-      if (soldAnimationPlayerId !== null) {
-        setSoldAnimationPlayerId(null);
-        setIsFlipped(false);
-        setShowGreenSweep(false);
+      if (player?._id && lastUnsoldPlayerIdRef.current === String(player._id)) {
+        lastUnsoldPlayerIdRef.current = null;
       }
     }
   }, [status, player?._id]);

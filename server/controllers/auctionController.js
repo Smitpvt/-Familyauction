@@ -24,7 +24,7 @@ const getOrCreateAuctionState = async () => {
       currentPlayer: firstPlayer ? firstPlayer._id : null,
       currentBid: firstPlayer ? firstPlayer.basePrice : 0,
       highestBidder: null,
-      status: firstPlayer ? 'ready' : 'idle',
+      status: 'idle',
       bidIncrementOptions: [100, 200, 500, 1000],
       selectedIncrement: 100
     });
