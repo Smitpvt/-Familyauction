@@ -4,8 +4,8 @@ import { authAPI } from '../services/api';
 import hfplLogo from '../logo/HFPL logo-Photoroom.png';
 
 export default function AdminLogin({ onLoginSuccess }) {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('hfpl2027');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -82,10 +82,6 @@ export default function AdminLogin({ onLoginSuccess }) {
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white transition"
               />
             </div>
-          </div>
-
-          <div className="p-3 bg-zinc-900/60 rounded-xl border border-zinc-800/80 text-xs text-zinc-400 flex items-center justify-between">
-            <span>Demo: <strong className="text-zinc-200">admin</strong> / <strong className="text-zinc-200">hfpl2027</strong></span>
           </div>
 
           <button
