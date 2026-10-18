@@ -286,132 +286,186 @@ exports.startBidding = async (req, res) => {
 };
 
 // POST /api/auction/bid
-exports.placeBid = async (req, res) => {
-  try {
-    let { teamId, amount, increment } = req.body;
-    const state = await getOrCreateAuctionState();
+// Uses sequential Promise queue to guarantee rapid consecutive bids never interleave or use stale DB state
+let bidQueue = Promise.resolve();
 
-    if (!['bidding', 'ready'].includes(state.status)) {
-      return res.status(400).json({ success: false, message: 'Auction is not in active bidding state.' });
-    }
+exports.placeBid = (req, res) => {
+  bidQueue = bidQueue.then(async () => {
+    try {
+      let { teamId, amount, increment } = req.body;
+      const state = await getOrCreateAuctionState();
 
-    if (!state.currentPlayer) {
-      return res.status(400).json({ success: false, message: 'No active player to bid on.' });
-    }
-
-    const player = await Player.findById(state.currentPlayer);
-    if (!player) {
-      return res.status(404).json({ success: false, message: 'Player not found.' });
-    }
-
-    if (player.status === 'sold' || player.status === 'unsold' || ['sold', 'unsold'].includes(state.status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Player is already ${player.status === 'sold' || state.status === 'sold' ? 'SOLD' : 'UNSOLD'}. Bidding is closed.`
-      });
-    }
-
-    // Fallback to highestBidder or first available team if teamId wasn't passed
-    if (!teamId && state.highestBidder) {
-      teamId = state.highestBidder;
-    }
-    if (!teamId) {
-      const firstTeam = await Team.findOne().sort({ name: 1 });
-      if (firstTeam) teamId = firstTeam._id;
-    }
-
-    const team = await Team.findById(teamId);
-    if (!team) return res.status(404).json({ success: false, message: 'Team not found.' });
-
-    // Determine target bid amount
-    let targetAmount = 0;
-    if (amount !== undefined && amount !== null && amount !== '') {
-      targetAmount = Number(amount);
-    } else {
-      const inc = increment !== undefined && increment !== null && Number(increment) > 0
-        ? Number(increment)
-        : (state.selectedIncrement || 100);
-
-      if (!state.highestBidder) {
-        // Opening bid starts at player base price
-        targetAmount = player.basePrice;
-      } else {
-        // Subsequent bids increase by increment
-        targetAmount = (state.currentBid || player.basePrice) + inc;
+      if (!['bidding', 'ready'].includes(state.status)) {
+        return res.status(400).json({ success: false, message: 'Auction is not in active bidding state.' });
       }
-    }
 
-    // Bid validation rules
-    // 1. Prevent duplicate or non-increasing bids
-    if (state.highestBidder && targetAmount <= state.currentBid) {
-      return res.status(400).json({
-        success: false,
-        message: `New bid (₹${targetAmount}) must be strictly higher than current bid (₹${state.currentBid}).`
+      if (!state.currentPlayer) {
+        return res.status(400).json({ success: false, message: 'No active player to bid on.' });
+      }
+
+      const player = await Player.findById(state.currentPlayer);
+      if (!player) {
+        return res.status(404).json({ success: false, message: 'Player not found.' });
+      }
+
+      if (player.status === 'sold' || player.status === 'unsold' || ['sold', 'unsold'].includes(state.status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Player is already ${player.status === 'sold' || state.status === 'sold' ? 'SOLD' : 'UNSOLD'}. Bidding is closed.`
+        });
+      }
+
+      const minInc = state.selectedIncrement || 100;
+      let targetAmount = 0;
+      let isIncremental = false;
+      let appliedInc = 0;
+
+      // Base price reference: use currentBid if initialized and valid, otherwise player basePrice
+      const currentBase = (state.currentBid && state.currentBid >= player.basePrice)
+        ? state.currentBid
+        : player.basePrice;
+
+      if (increment !== undefined && increment !== null && increment !== '') {
+        // INCREMENTAL BIDDING: Add selected increment to authoritative current bid
+        isIncremental = true;
+        appliedInc = Number(increment);
+        if (isNaN(appliedInc) || appliedInc <= 0) {
+          return res.status(400).json({ success: false, message: 'Invalid bid increment amount.' });
+        }
+
+        // Validate against configured minimum increment rule
+        if (appliedInc < minInc) {
+          return res.status(400).json({
+            success: false,
+            message: `Selected increment (+₹${appliedInc}) is lower than the configured minimum increment (+₹${minInc}).`
+          });
+        }
+
+        targetAmount = currentBase + appliedInc;
+      } else if (amount !== undefined && amount !== null && amount !== '') {
+        // CUSTOM EXACT BIDDING: Absolute price provided
+        targetAmount = Number(amount);
+        if (isNaN(targetAmount) || targetAmount <= 0) {
+          return res.status(400).json({ success: false, message: 'Invalid custom bid amount.' });
+        }
+
+        // Custom exact bid must be >= currentBase + minInc
+        if (targetAmount < currentBase + minInc) {
+          return res.status(400).json({
+            success: false,
+            message: `Custom bid (₹${targetAmount}) must be at least ₹${currentBase + minInc} (current ₹${currentBase} + min increment ₹${minInc}).`
+          });
+        }
+      } else {
+        // Fallback default increment
+        appliedInc = minInc;
+        targetAmount = currentBase + appliedInc;
+      }
+
+      // Universal validation
+      // 1. Must be strictly higher than current bid
+      if (targetAmount <= state.currentBid) {
+        return res.status(400).json({
+          success: false,
+          message: `New bid (₹${targetAmount}) must be strictly higher than current bid (₹${state.currentBid}).`
+        });
+      }
+
+      // 2. Prevent bids below player base price
+      if (targetAmount < player.basePrice) {
+        return res.status(400).json({
+          success: false,
+          message: `Bid cannot be lower than player base price (₹${player.basePrice}).`
+        });
+      }
+
+      let team = null;
+      if (teamId) {
+        team = await Team.findById(teamId);
+        if (!team) return res.status(404).json({ success: false, message: 'Team not found.' });
+
+        if (state.highestBidder && String(state.highestBidder) === String(team._id)) {
+          return res.status(400).json({
+            success: false,
+            message: `${team.name} is already the highest bidder.`
+          });
+        }
+
+        if (targetAmount > team.remainingPurse) {
+          return res.status(400).json({
+            success: false,
+            message: `${team.name} only has ₹${team.remainingPurse} remaining in purse. Cannot bid ₹${targetAmount}!`
+          });
+        }
+      } else {
+        // Teamless verbal bidding: verify at least one franchise team can afford this bid
+        const teams = await Team.find().select('remainingPurse');
+        const maxRemainingPurse = teams.reduce((max, t) => Math.max(max, t.remainingPurse || 0), 0);
+        if (teams.length > 0 && targetAmount > maxRemainingPurse) {
+          return res.status(400).json({
+            success: false,
+            message: `Bid of ₹${targetAmount} exceeds the maximum purse available across all franchise teams (₹${maxRemainingPurse}).`
+          });
+        }
+      }
+
+      // Authoritative State Update
+      state.currentBid = targetAmount;
+      if (team) {
+        state.highestBidder = team._id;
+      }
+      state.status = 'bidding';
+      state.bidHistory.push({
+        team: team ? team._id : null,
+        amount: targetAmount,
+        timestamp: new Date()
       });
-    }
+      await state.save();
 
-    // 2. Prevent bids below base price
-    if (targetAmount < player.basePrice) {
-      return res.status(400).json({
-        success: false,
-        message: `Opening bid cannot be lower than player base price (₹${player.basePrice}).`
+      // Log bid record
+      const bidRecord = new Bid({
+        player: player._id,
+        team: team ? team._id : null,
+        round: state.currentRound,
+        amount: targetAmount
       });
-    }
+      await bidRecord.save();
 
-    // 3. Server-side purse validation: Team cannot bid more than its remaining purse!
-    if (targetAmount > team.remainingPurse) {
-      return res.status(400).json({
-        success: false,
-        message: `${team.name} only has ₹${team.remainingPurse} remaining in purse. Cannot bid ₹${targetAmount}!`
+      emitEvent('BID_PLACED', {
+        team: team ? { id: team._id, name: team.name, code: team.code, color: team.color } : null,
+        amount: targetAmount,
+        increment: isIncremental ? appliedInc : null,
+        playerName: player.name
       });
+
+      await broadcastStateUpdate({
+        announcement: team
+          ? `Bid raised to ₹${targetAmount} by ${team.name}!`
+          : isIncremental
+          ? `Bid raised by +₹${appliedInc} to ₹${targetAmount}!`
+          : `Bid raised to ₹${targetAmount}!`
+      });
+
+      res.json({ success: true, currentBid: targetAmount, highestBidder: team });
+    } catch (error) {
+      console.error('Error in placeBid:', error);
+      res.status(500).json({ success: false, message: error.message });
     }
-
-    // Accept bid
-    state.currentBid = targetAmount;
-    state.highestBidder = team._id;
-    state.status = 'bidding';
-    state.bidHistory.push({
-      team: team._id,
-      amount: targetAmount,
-      timestamp: new Date()
-    });
-    await state.save();
-
-    // Log bid record
-    const bidRecord = new Bid({
-      player: player._id,
-      team: team._id,
-      round: state.currentRound,
-      amount: targetAmount
-    });
-    await bidRecord.save();
-
-    emitEvent('BID_PLACED', {
-      team: { id: team._id, name: team.name, code: team.code, color: team.color },
-      amount: targetAmount,
-      playerName: player.name
-    });
-
-    await broadcastStateUpdate({
-      announcement: `Bid raised to ₹${targetAmount} by ${team.name}!`
-    });
-
-    res.json({ success: true, currentBid: targetAmount, highestBidder: team });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
+  }).catch((queueErr) => {
+    console.error('Fatal queue error in placeBid:', queueErr);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: queueErr.message });
+    }
+  });
 };
 
 // POST /api/auction/sell
 exports.sellPlayer = async (req, res) => {
   try {
+    const { teamId } = req.body;
     const state = await getOrCreateAuctionState();
     if (!state.currentPlayer) {
       return res.status(400).json({ success: false, message: 'No active player to sell.' });
-    }
-
-    if (!state.highestBidder) {
-      return res.status(400).json({ success: false, message: 'Cannot sell player without any bids! Mark as UNSOLD instead.' });
     }
 
     const player = await Player.findById(state.currentPlayer);
@@ -421,10 +475,19 @@ exports.sellPlayer = async (req, res) => {
       return res.status(400).json({ success: false, message: `Player ${player.name} has already been sold!` });
     }
 
-    const team = await Team.findById(state.highestBidder);
+    // Winning team selection happens at SOLD (either from req.body.teamId or state.highestBidder)
+    const winningTeamId = teamId || state.highestBidder;
+    if (!winningTeamId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please choose which team wins the player before finalizing sale.'
+      });
+    }
+
+    const team = await Team.findById(winningTeamId);
     if (!team) return res.status(400).json({ success: false, message: 'Winning team not found.' });
 
-    const finalPrice = state.currentBid;
+    const finalPrice = state.currentBid || player.basePrice;
 
     // Strict validation against remaining purse
     if (finalPrice > team.remainingPurse) {

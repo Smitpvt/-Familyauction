@@ -29,17 +29,17 @@ export default function AdminLogin({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0c0d0e] text-white flex items-center justify-center p-6 font-sans">
-      <div className="w-full max-w-md bg-[#151618] border border-zinc-800 rounded-2xl p-8 shadow-2xl">
+    <div className="min-h-screen bg-[#0c0d0e] text-white flex items-center justify-center p-3 sm:p-6 font-sans">
+      <div className="w-full max-w-md bg-[#151618] border border-zinc-800 rounded-2xl p-5 sm:p-8 shadow-2xl">
         {/* Logo and Title */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <img
             src={hfplLogo}
             alt="HFPL Logo"
-            className="w-20 h-20 object-contain mx-auto mb-3 drop-shadow"
+            className="w-16 h-16 sm:w-20 sm:h-20 object-contain mx-auto mb-3 drop-shadow"
           />
-          <h2 className="text-2xl font-bold tracking-tight text-white">HFPL Admin Deck</h2>
-          <p className="text-zinc-400 text-xs tracking-wider uppercase mt-1 font-medium">Family Cricket Auction</p>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">HFPL Admin Deck</h2>
+          <p className="text-zinc-400 text-[11px] sm:text-xs tracking-wider uppercase mt-1 font-medium">Family Cricket Auction</p>
         </div>
 
         {error && (

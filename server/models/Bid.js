@@ -9,7 +9,8 @@ const bidSchema = new mongoose.Schema({
   team: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Team',
-    required: true
+    required: false,
+    default: null
   },
   round: {
     type: mongoose.Schema.Types.ObjectId,

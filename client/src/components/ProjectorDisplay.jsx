@@ -458,6 +458,11 @@ export default function ProjectorDisplay() {
     ? finalSalePrice
     : (state?.currentBid || (player ? player.basePrice : 0));
   const currentRound = state?.currentRound;
+  const hasLiveBids = Boolean(
+    highestBidder ||
+    (state?.bidHistory && state.bidHistory.length > 0) ||
+    (state?.status === 'bidding' && currentBid > (player?.basePrice || 0))
+  );
 
   // Maintain card flip state for SOLD players without firing audio or confetti on page reload
   useEffect(() => {
@@ -504,27 +509,30 @@ export default function ProjectorDisplay() {
       {/* ============================================================== */}
       {/* 1. PERSISTENT BRANDING: CLEAN FLAG-STYLE HEADER AT TOP         */}
       {/* ============================================================== */}
-      <header className={`${isFullscreen ? 'hidden' : 'h-16 px-6 lg:px-12 flex items-center justify-between shrink-0 z-30 border-b border-zinc-800/80 bg-[#0c0d0e]'}`}>
+      {/* ============================================================== */}
+      {/* 1. PERSISTENT BRANDING: CLEAN FLAG-STYLE HEADER AT TOP         */}
+      {/* ============================================================== */}
+      <header className={`${isFullscreen ? 'hidden' : 'h-14 sm:h-16 px-3 sm:px-6 lg:px-12 flex items-center justify-between shrink-0 z-30 border-b border-zinc-800/80 bg-[#0c0d0e]'}`}>
         {/* Flag-Style Branding Element */}
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
           <img
             src={hfplLogo}
             alt="HFPL Logo"
-            className="h-10 w-auto object-contain drop-shadow-sm"
+            className="h-8 sm:h-10 w-auto object-contain drop-shadow-sm shrink-0"
           />
-          <div className="h-5 w-px bg-zinc-800" />
-          <div>
-            <span className="text-sm font-bold tracking-tight text-white block leading-tight">
+          <div className="h-4 sm:h-5 w-px bg-zinc-800 shrink-0" />
+          <div className="min-w-0">
+            <span className="text-xs sm:text-sm font-bold tracking-tight text-white block leading-tight truncate">
               HFPL 2027
             </span>
-            <span className="text-[10px] tracking-widest uppercase font-medium text-zinc-400 block leading-tight">
-              Family Cricket Auction
+            <span className="text-[9px] sm:text-[10px] tracking-wider sm:tracking-widest uppercase font-medium text-zinc-400 block leading-tight truncate">
+              Cricket Auction
             </span>
           </div>
         </div>
 
         {/* Set Indicator / Switcher & Display Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {currentView === 'auction' && currentRound && (
             <button
               onClick={() => setCurrentView('sets')}
@@ -532,7 +540,7 @@ export default function ProjectorDisplay() {
               className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 font-medium transition"
             >
               <Layers className="w-3.5 h-3.5 text-zinc-400" />
-              <span>{currentRound.name}</span>
+              <span className="truncate max-w-[120px]">{currentRound.name}</span>
             </button>
           )}
 
@@ -543,16 +551,18 @@ export default function ProjectorDisplay() {
                   setRulesPage(1);
                   setCurrentView('rules');
                 }}
-                className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-full hover:bg-zinc-900 transition flex items-center gap-1.5"
+                className="text-xs text-zinc-400 hover:text-white px-2.5 sm:px-3 py-1.5 rounded-full hover:bg-zinc-900 transition flex items-center gap-1.5"
+                title="Rules"
               >
                 <BookOpen className="w-3.5 h-3.5 text-[#d4af37]" />
                 <span className="hidden sm:inline">Rules</span>
               </button>
               <button
                 onClick={() => setCurrentView('welcome')}
-                className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-full hover:bg-zinc-900 transition"
+                className="text-xs text-zinc-400 hover:text-white px-2.5 sm:px-3 py-1.5 rounded-full hover:bg-zinc-900 transition"
               >
-                Start Screen
+                <span className="hidden sm:inline">Start Screen</span>
+                <span className="sm:hidden">Start</span>
               </button>
             </>
           )}
@@ -561,16 +571,17 @@ export default function ProjectorDisplay() {
             <>
               <button
                 onClick={() => setCurrentView('welcome')}
-                className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-full hover:bg-zinc-900 transition flex items-center gap-1.5"
+                className="text-xs text-zinc-400 hover:text-white px-2.5 sm:px-3 py-1.5 rounded-full hover:bg-zinc-900 transition flex items-center gap-1.5"
               >
                 <Home className="w-3.5 h-3.5" />
-                <span>Start Screen</span>
+                <span className="hidden sm:inline">Start Screen</span>
+                <span className="sm:hidden">Start</span>
               </button>
               <button
                 onClick={handleStartAuction}
-                className="text-xs bg-white text-zinc-950 font-bold px-3.5 py-1.5 rounded-full hover:bg-zinc-200 transition flex items-center gap-1 shadow-sm"
+                className="text-xs bg-white text-zinc-950 font-bold px-3 sm:px-3.5 py-1.5 rounded-full hover:bg-zinc-200 transition flex items-center gap-1 shadow-sm"
               >
-                <span>Begin Auction</span>
+                <span>Begin</span>
                 <Play className="w-3 h-3 fill-current" />
               </button>
             </>
@@ -581,9 +592,10 @@ export default function ProjectorDisplay() {
               {state?.currentPlayer && (
                 <button
                   onClick={() => setCurrentView('auction')}
-                  className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-full hover:bg-zinc-900 transition"
+                  className="text-xs text-zinc-400 hover:text-white px-2.5 sm:px-3 py-1.5 rounded-full hover:bg-zinc-900 transition"
                 >
-                  Live Auction
+                  <span className="hidden sm:inline">Live Auction</span>
+                  <span className="sm:hidden">Live</span>
                 </button>
               )}
               <button
@@ -591,7 +603,7 @@ export default function ProjectorDisplay() {
                   setRulesPage(1);
                   setCurrentView('rules');
                 }}
-                className="text-xs text-zinc-300 hover:text-white px-3 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex items-center gap-1.5"
+                className="text-xs text-zinc-300 hover:text-white px-2.5 sm:px-3 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex items-center gap-1.5"
               >
                 <BookOpen className="w-3.5 h-3.5 text-[#d4af37]" />
                 <span>Rules</span>
@@ -602,12 +614,12 @@ export default function ProjectorDisplay() {
           <div className="h-4 w-px bg-zinc-800 hidden sm:block" />
 
           {/* Audio & Fullscreen Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <AudioControl />
             <button
               onClick={toggleFullscreen}
               title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Enter Fullscreen (F)'}
-              className="p-2 rounded-full bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition"
+              className="p-1.5 sm:p-2 rounded-full bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 transition"
             >
               {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
@@ -627,13 +639,13 @@ export default function ProjectorDisplay() {
       )}
 
       {/* ============================================================== */}
-      {/* 2. MAIN 16:9 PRESENTATION CANVAS                               */}
+      {/* 2. MAIN PRESENTATION CANVAS                                    */}
       {/* ============================================================== */}
       <main
-        className={`w-full flex items-center justify-center overflow-hidden transition-all duration-300 ${
+        className={`w-full flex items-center justify-center overflow-x-hidden transition-all duration-300 ${
           isFullscreen
-            ? 'h-screen w-screen p-0 m-0 max-w-none'
-            : 'flex-1 max-w-7xl mx-auto px-6 py-6 lg:py-8'
+            ? 'h-screen w-screen p-0 m-0 max-w-none overflow-hidden'
+            : 'flex-1 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 lg:py-8 overflow-y-auto'
         }`}
       >
         
@@ -738,26 +750,27 @@ export default function ProjectorDisplay() {
         {currentView === 'rules' && (
           <div className="w-full max-w-5xl flex flex-col justify-between animate-fade-in my-auto h-full max-h-[85vh] py-2">
             {/* Rules Top Bar */}
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800/80 shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80 shrink-0">
               <button
                 onClick={() => setCurrentView('welcome')}
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 transition"
+                className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white hover:border-zinc-700 transition"
               >
                 <Home className="w-3.5 h-3.5" />
-                <span>BACK TO HOME</span>
+                <span className="hidden sm:inline">BACK TO HOME</span>
+                <span className="sm:hidden">HOME</span>
               </button>
 
-              <div className="text-center">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-white uppercase">
+              <div className="text-center order-first sm:order-none w-full sm:w-auto">
+                <h2 className="text-base sm:text-xl md:text-2xl font-bold tracking-tight text-white uppercase">
                   Auction Rules & Regulations
                 </h2>
-                <p className="text-[11px] md:text-xs text-[#d4af37] font-semibold tracking-widest uppercase">
+                <p className="text-[10px] md:text-xs text-[#d4af37] font-semibold tracking-widest uppercase">
                   HFPL 2027 Tournament Code
                 </p>
               </div>
 
               {/* Page Indicator Pill */}
-              <div className="px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/40 text-[#d4af37] text-xs font-bold tracking-wider uppercase">
+              <div className="px-2.5 sm:px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/40 text-[#d4af37] text-[11px] sm:text-xs font-bold tracking-wider uppercase ml-auto sm:ml-0">
                 PAGE {rulesPage} OF 2
               </div>
             </div>
@@ -791,38 +804,39 @@ export default function ProjectorDisplay() {
             </div>
 
             {/* Rules Navigation Footer */}
-            <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80 shrink-0">
+            <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80 shrink-0 gap-2">
               {/* Previous Button */}
               <button
                 onClick={() => setRulesPage(1)}
                 disabled={rulesPage === 1}
-                className="px-5 py-2 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-200 hover:text-white hover:border-zinc-500 font-semibold text-xs sm:text-sm transition flex items-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
+                className="px-3.5 sm:px-5 py-2 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-200 hover:text-white hover:border-zinc-500 font-semibold text-xs sm:text-sm transition flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>PREVIOUS</span>
+                <span className="hidden min-[380px]:inline">PREVIOUS</span>
+                <span className="min-[380px]:hidden">PREV</span>
               </button>
 
               {/* Interactive Page Dots */}
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-zinc-400">
                 <span
                   onClick={() => setRulesPage(1)}
-                  className={`cursor-pointer px-3 py-1 rounded-full transition ${
+                  className={`cursor-pointer px-2.5 sm:px-3 py-1 rounded-full transition ${
                     rulesPage === 1
                       ? 'bg-[#d4af37] text-black font-extrabold shadow-sm'
                       : 'bg-zinc-800 text-zinc-400 hover:text-white'
                   }`}
                 >
-                  PAGE 1
+                  <span className="hidden sm:inline">PAGE </span>1
                 </span>
                 <span
                   onClick={() => setRulesPage(2)}
-                  className={`cursor-pointer px-3 py-1 rounded-full transition ${
+                  className={`cursor-pointer px-2.5 sm:px-3 py-1 rounded-full transition ${
                     rulesPage === 2
                       ? 'bg-[#d4af37] text-black font-extrabold shadow-sm'
                       : 'bg-zinc-800 text-zinc-400 hover:text-white'
                   }`}
                 >
-                  PAGE 2
+                  <span className="hidden sm:inline">PAGE </span>2
                 </span>
               </div>
 
@@ -830,7 +844,7 @@ export default function ProjectorDisplay() {
               {rulesPage === 1 ? (
                 <button
                   onClick={() => setRulesPage(2)}
-                  className="px-6 py-2 rounded-full bg-zinc-900 border border-zinc-700 hover:border-zinc-500 text-white font-semibold text-xs sm:text-sm transition flex items-center gap-2"
+                  className="px-4 sm:px-6 py-2 rounded-full bg-zinc-900 border border-zinc-700 hover:border-zinc-500 text-white font-semibold text-xs sm:text-sm transition flex items-center gap-1.5"
                 >
                   <span>NEXT</span>
                   <ChevronRight className="w-4 h-4" />
@@ -838,7 +852,7 @@ export default function ProjectorDisplay() {
               ) : (
                 <button
                   onClick={handleStartAuction}
-                  className="px-6 py-2 rounded-full bg-white text-zinc-950 hover:bg-zinc-200 font-extrabold text-xs sm:text-sm transition flex items-center gap-2 shadow-md hover:scale-[1.02]"
+                  className="px-4 sm:px-6 py-2 rounded-full bg-white text-zinc-950 hover:bg-zinc-200 font-extrabold text-xs sm:text-sm transition flex items-center gap-1.5 shadow-md hover:scale-[1.02]"
                 >
                   <span>LET'S BEGIN</span>
                   <Play className="w-3.5 h-3.5 fill-current" />
@@ -935,15 +949,15 @@ export default function ProjectorDisplay() {
             <div className={`relative w-full flex items-center justify-center transition-all duration-300 ${
               isFullscreen
                 ? 'w-[92vw] h-[85vh] max-w-[1780px] max-h-[920px]'
-                : 'max-w-5xl h-full max-h-[calc(100vh-140px)]'
+                : 'max-w-5xl h-auto md:h-full md:max-h-[calc(100vh-140px)]'
             }`}>
               
               {/* The Player Card Container */}
               <div
-                className={`relative w-full h-full rounded-[28px] border overflow-hidden flex flex-col md:flex-row items-center transition-all duration-300 ${
+                className={`relative w-full h-auto md:h-full rounded-[22px] sm:rounded-[28px] border overflow-hidden flex flex-col md:flex-row items-center transition-all duration-300 ${
                   isFullscreen
-                    ? 'p-8 sm:p-10 lg:p-12 xl:p-14 gap-8 lg:gap-12 xl:gap-16 justify-between'
-                    : 'p-6 sm:p-8 md:p-10 lg:p-12 gap-8 lg:gap-14'
+                    ? 'p-6 sm:p-10 lg:p-12 xl:p-14 gap-6 sm:gap-8 lg:gap-12 xl:gap-16 justify-between'
+                    : 'p-4 sm:p-8 md:p-10 lg:p-12 gap-5 sm:gap-8 lg:gap-14'
                 } shadow-2xl ${
                   status === 'sold'
                     ? 'bg-[#151618] border-red-600/60 ring-2 ring-red-500/20'
@@ -998,20 +1012,21 @@ export default function ProjectorDisplay() {
                     </div>
 
                     {/* Card Header (Top-Right): HFPL 2027 | LIVE AUCTION & Official HFPL Crest */}
-                    <div className={`absolute ${isFullscreen ? 'top-6 right-8 sm:top-8 sm:right-10' : 'top-5 right-6 sm:top-6 sm:right-8'} flex items-center gap-3 sm:gap-4 z-20`}>
-                      <div className="flex items-center text-xs sm:text-sm font-semibold tracking-wider">
-                        <span className={`text-white font-extrabold tracking-widest ${isFullscreen ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'}`}>HFPL</span>
-                        <span className={`text-amber-400 font-extrabold ml-1.5 ${isFullscreen ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'}`}>2027</span>
-                        <span className="text-zinc-600 mx-2.5 sm:mx-3 text-xs">|</span>
-                        <span className={`inline-flex items-center gap-1.5 text-zinc-300 tracking-[0.22em] ${isFullscreen ? 'text-[11px] sm:text-xs' : 'text-[10px] sm:text-[11px]'} uppercase font-bold`}>
-                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                          LIVE AUCTION
+                    <div className={`absolute ${isFullscreen ? 'top-6 right-8 sm:top-8 sm:right-10' : 'top-3 right-3 sm:top-6 sm:right-8'} flex items-center gap-2 sm:gap-4 z-20`}>
+                      <div className="flex items-center text-[10px] sm:text-xs font-semibold tracking-wider">
+                        <span className={`text-white font-extrabold tracking-widest ${isFullscreen ? 'text-xs sm:text-sm' : 'text-[10px] sm:text-xs'}`}>HFPL</span>
+                        <span className={`text-amber-400 font-extrabold ml-1 ${isFullscreen ? 'text-xs sm:text-sm' : 'text-[10px] sm:text-xs'}`}>2027</span>
+                        <span className="text-zinc-600 mx-1.5 sm:mx-3 text-[10px]">|</span>
+                        <span className={`inline-flex items-center gap-1 sm:gap-1.5 text-zinc-300 tracking-[0.15em] sm:tracking-[0.22em] ${isFullscreen ? 'text-[10px] sm:text-xs' : 'text-[9px] sm:text-[11px]'} uppercase font-bold`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          <span className="hidden min-[380px]:inline">LIVE AUCTION</span>
+                          <span className="min-[380px]:hidden">LIVE</span>
                         </span>
                       </div>
                       <img
                         src={hfplLogo}
                         alt="HFPL"
-                        className={`${isFullscreen ? 'w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20' : 'w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16'} object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.6)]`}
+                        className={`${isFullscreen ? 'w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20' : 'w-8 h-8 sm:w-14 sm:h-14 lg:w-16 lg:h-16'} object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.6)]`}
                       />
                     </div>
                   </>
@@ -1028,7 +1043,7 @@ export default function ProjectorDisplay() {
                       ? 'right-4 bottom-4 w-48 h-48 md:w-64 md:h-64 object-contain opacity-[0.045]'
                       : isFullscreen
                       ? 'right-8 md:right-16 top-1/2 -translate-y-1/2 w-80 h-80 lg:w-[440px] lg:h-[440px] object-contain opacity-[0.09]'
-                      : 'right-6 md:right-12 top-1/2 -translate-y-1/2 w-64 h-64 md:w-80 md:h-80 object-contain opacity-[0.09]'
+                      : 'right-6 md:right-12 top-1/2 -translate-y-1/2 w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 object-contain opacity-[0.07] sm:opacity-[0.09]'
                   }`}
                 />
 
@@ -1038,7 +1053,7 @@ export default function ProjectorDisplay() {
                 )}
 
                 {/* 1. PLAYER PHOTOGRAPH (Main visual element with refined blue-and-gold border & corner stamps) */}
-                <div className="flex flex-col items-center shrink-0 z-10">
+                <div className="flex flex-col items-center shrink-0 z-10 pt-2 sm:pt-0">
                   <div className="relative">
                     {/* Refined blue-and-gold border frame matching reference */}
                     <div className={`p-[2.5px] rounded-[22px] transition-all duration-300 ${
@@ -1048,8 +1063,8 @@ export default function ProjectorDisplay() {
                     }`}>
                       <div className={`rounded-[20px] overflow-hidden bg-zinc-950 transition-all duration-300 ${
                         isFullscreen
-                          ? 'w-[clamp(280px,27vw,450px)] h-[clamp(340px,54vh,540px)]'
-                          : 'w-64 h-72 sm:w-72 sm:h-80 md:w-80 md:h-96 lg:w-[380px] lg:h-[460px]'
+                          ? 'w-[clamp(240px,27vw,450px)] h-[clamp(300px,54vh,540px)]'
+                          : 'w-44 h-52 min-[380px]:w-52 min-[380px]:h-60 sm:w-72 sm:h-80 md:w-80 md:h-96 lg:w-[380px] lg:h-[460px]'
                       }`}>
                         <img
                           src={resolveImageUrl(player.photo) || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&auto=format&fit=crop&q=80'}
@@ -1079,16 +1094,16 @@ export default function ProjectorDisplay() {
 
                   {/* Neat winning team & final sale price label BELOW photograph */}
                   {status === 'sold' && (
-                    <div className="mt-3.5 px-4 py-1.5 rounded-full bg-white text-zinc-950 font-semibold text-xs sm:text-sm shadow-md flex items-center gap-1.5 border border-zinc-200 animate-fade-in z-10">
+                    <div className="mt-2.5 sm:mt-3.5 px-3 sm:px-4 py-1.5 rounded-full bg-white text-zinc-950 font-semibold text-xs sm:text-sm shadow-md flex items-center gap-1.5 border border-zinc-200 animate-fade-in z-10 max-w-full">
                       <span className="text-zinc-600 font-medium">Won by</span>
-                      <span className="text-red-600 font-extrabold">{highestBidder?.name || 'Winning Team'}</span>
+                      <span className="text-red-600 font-extrabold truncate max-w-[120px] sm:max-w-none">{highestBidder?.name || 'Winning Team'}</span>
                       <span className="text-zinc-400">•</span>
-                      <span className="font-extrabold text-zinc-950">{formatINR(currentBid)}</span>
+                      <span className="font-extrabold text-zinc-950 shrink-0">{formatINR(currentBid)}</span>
                     </div>
                   )}
 
                   {status === 'unsold' && (
-                    <div className="mt-3.5 px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-300 font-medium text-xs sm:text-sm border border-zinc-700 animate-fade-in z-10">
+                    <div className="mt-2.5 sm:mt-3.5 px-3 sm:px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-300 font-medium text-xs sm:text-sm border border-zinc-700 animate-fade-in z-10">
                       Unsold
                     </div>
                   )}
@@ -1096,43 +1111,43 @@ export default function ProjectorDisplay() {
 
                 {/* 2, 3, 4: PLAYER DETAILS (Name, Designation, Base Price, Current Bid) */}
                 <div className={`flex-1 flex flex-col justify-center text-left transition-all duration-300 z-10 w-full ${
-                  isFullscreen ? 'space-y-5 lg:space-y-7' : 'space-y-4 lg:space-y-6'
+                  isFullscreen ? 'space-y-4 sm:space-y-5 lg:space-y-7' : 'space-y-3 sm:space-y-4 lg:space-y-6'
                 }`}>
                   
                   {/* 3. PLAYER DESIGNATION (Batter, Bowler, All-rounder, Wicketkeeper) */}
                   <div>
-                    <div className="inline-flex items-center gap-2.5">
+                    <div className="inline-flex items-center gap-2">
                       {status === 'bidding' ? (
-                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2.5 h-2.5'} rounded-full bg-emerald-500 animate-pulse shrink-0`} />
+                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2 sm:w-2.5 h-2 sm:h-2.5'} rounded-full bg-emerald-500 animate-pulse shrink-0`} />
                       ) : status === 'sold' ? (
-                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2.5 h-2.5'} rounded-full bg-red-500 shrink-0`} />
+                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2 sm:w-2.5 h-2 sm:h-2.5'} rounded-full bg-red-500 shrink-0`} />
                       ) : (
-                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2.5 h-2.5'} rounded-full bg-amber-400 shadow-[0_0_10px_#f59e0b] shrink-0`} />
+                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2 sm:w-2.5 h-2 sm:h-2.5'} rounded-full bg-amber-400 shadow-[0_0_10px_#f59e0b] shrink-0`} />
                       )}
-                      <span className={`${isFullscreen ? 'text-2xl sm:text-3xl lg:text-4xl' : 'text-xl sm:text-2xl lg:text-3xl'} font-medium tracking-wide text-zinc-100`}>
+                      <span className={`${isFullscreen ? 'text-2xl sm:text-3xl lg:text-4xl' : 'text-lg sm:text-2xl lg:text-3xl'} font-medium tracking-wide text-zinc-100`}>
                         {player.category}
                       </span>
                     </div>
                     {/* Gold accent underline beneath designation */}
                     {status !== 'sold' && (
-                      <div className={`${isFullscreen ? 'w-20 h-[3px]' : 'w-14 h-[2px]'} bg-gradient-to-r from-amber-400 via-amber-300 to-transparent rounded-full mt-2`} />
+                      <div className={`${isFullscreen ? 'w-20 h-[3px]' : 'w-12 sm:w-14 h-[2px]'} bg-gradient-to-r from-amber-400 via-amber-300 to-transparent rounded-full mt-1.5 sm:mt-2`} />
                     )}
                   </div>
 
                   {/* 2. PLAYER NAME (Prominent, High-Contrast Typography) */}
-                  <div>
+                  <div className="w-full">
                     <h2 className={`${
                       isFullscreen
-                        ? 'text-6xl sm:text-7xl lg:text-8xl xl:text-9xl'
-                        : 'text-5xl sm:text-6xl lg:text-7xl xl:text-8xl'
-                    } font-black tracking-tight text-white leading-tight drop-shadow-sm`}>
+                        ? 'text-4xl sm:text-6xl lg:text-8xl xl:text-9xl'
+                        : 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl'
+                    } font-black tracking-tight text-white leading-tight drop-shadow-sm break-words`}>
                       {player.name}
                     </h2>
                   </div>
 
                   {/* Luminous Gold Horizontal Divider with Center Glow Flare */}
                   {status !== 'sold' ? (
-                    <div className={`relative w-full ${isFullscreen ? 'my-3 sm:my-5 xl:my-6' : 'my-1 sm:my-2'} flex items-center justify-center`}>
+                    <div className={`relative w-full ${isFullscreen ? 'my-2 sm:my-5 xl:my-6' : 'my-1 sm:my-2'} flex items-center justify-center`}>
                       <div className="absolute inset-x-8 h-3 bg-gradient-to-r from-transparent via-amber-400/30 to-transparent blur-md pointer-events-none" />
                       <div className="relative w-full h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/80 to-transparent" />
                     </div>
@@ -1143,7 +1158,7 @@ export default function ProjectorDisplay() {
                   {/* 4. BASE PRICE & FINAL SALE DETAILS / LIVE BID */}
                   <div className="w-full">
                     {status === 'sold' ? (
-                      <div className="space-y-4 w-full">
+                      <div className="space-y-3 sm:space-y-4 w-full">
                         {/* Compact Base Price and Status header */}
                         <div className="flex items-center justify-between text-xs sm:text-sm">
                           <div className="flex items-center gap-2">
@@ -1161,24 +1176,24 @@ export default function ProjectorDisplay() {
                             className={`relative w-full rounded-2xl transition-transform duration-700 ease-out transform-style-3d ${
                               isFlipped ? 'rotate-y-180' : ''
                             }`}
-                            style={{ minHeight: isFullscreen ? '210px' : '175px' }}
+                            style={{ minHeight: isFullscreen ? '210px' : '150px' }}
                           >
                             {/* 1. FRONT SIDE (Pre-flip State: Hammer down / Confirming sale) */}
-                            <div className="absolute inset-0 backface-hidden rounded-2xl bg-zinc-900/90 border border-red-500/30 p-5 flex flex-col items-center justify-center text-center shadow-xl">
-                              <div className="w-12 h-12 rounded-full bg-red-600/20 border border-red-500/40 flex items-center justify-center mb-2 animate-bounce">
-                                <Gavel className="w-6 h-6 text-red-400" />
+                            <div className="absolute inset-0 backface-hidden rounded-2xl bg-zinc-900/90 border border-red-500/30 p-4 sm:p-5 flex flex-col items-center justify-center text-center shadow-xl">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-600/20 border border-red-500/40 flex items-center justify-center mb-1.5 sm:mb-2 animate-bounce">
+                                <Gavel className="w-5 h-5 sm:w-6 sm:h-6 text-red-400" />
                               </div>
-                              <span className="text-[11px] font-bold uppercase tracking-widest text-red-400">
+                              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-red-400">
                                 Hammer Down
                               </span>
-                              <span className="text-sm font-semibold text-zinc-300 mt-0.5">
+                              <span className="text-xs sm:text-sm font-semibold text-zinc-300 mt-0.5">
                                 Sold! Revealing Winning Team...
                               </span>
                             </div>
 
                             {/* 2. BACK SIDE (Flipped: Official Logo, Team Name, Captain, Final Sale Price) */}
                             <div
-                              className="backface-hidden rotate-y-180 rounded-2xl bg-gradient-to-br from-zinc-900/95 via-zinc-900 to-zinc-950 border p-5 sm:p-6 shadow-2xl flex flex-col sm:flex-row items-center gap-5 sm:gap-6 border-zinc-700"
+                              className="backface-hidden rotate-y-180 rounded-2xl bg-gradient-to-br from-zinc-900/95 via-zinc-900 to-zinc-950 border p-3.5 sm:p-6 shadow-2xl flex flex-col sm:flex-row items-center gap-3 sm:gap-6 border-zinc-700"
                               style={{
                                 borderColor: highestBidder?.color ? `${highestBidder.color}80` : '#ef4444',
                                 boxShadow: highestBidder?.color ? `0 10px 30px -10px ${highestBidder.color}40` : '0 10px 30px -10px rgba(239, 68, 68, 0.25)'
@@ -1187,7 +1202,7 @@ export default function ProjectorDisplay() {
                               {/* Official Team Logo from client/src/team_logo/ */}
                               <div className="relative shrink-0">
                                 <div
-                                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl p-2 bg-zinc-950/80 border flex items-center justify-center shadow-inner overflow-hidden"
+                                  className="w-16 h-16 min-[380px]:w-20 min-[380px]:h-20 sm:w-28 sm:h-28 rounded-2xl p-2 bg-zinc-950/80 border flex items-center justify-center shadow-inner overflow-hidden"
                                   style={{ borderColor: highestBidder?.color || '#52525b' }}
                                 >
                                   {resolveTeamLogo(highestBidder) ? (
@@ -1201,7 +1216,7 @@ export default function ProjectorDisplay() {
                                     />
                                   ) : (
                                     <div
-                                      className="w-full h-full rounded-xl flex items-center justify-center font-black text-2xl text-black shadow-sm"
+                                      className="w-full h-full rounded-xl flex items-center justify-center font-black text-xl sm:text-2xl text-black shadow-sm"
                                       style={{ backgroundColor: highestBidder?.color || '#f59e0b' }}
                                     >
                                       {highestBidder?.code || 'HFPL'}
@@ -1211,13 +1226,13 @@ export default function ProjectorDisplay() {
                               </div>
 
                               {/* Team Name, Captain & Prominent Final Price */}
-                              <div className="flex-1 text-center sm:text-left space-y-1.5">
-                                <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/30">
+                              <div className="flex-1 text-center sm:text-left space-y-1">
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/30">
                                   <span>Won By</span>
                                   <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
                                 </div>
 
-                                <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                                <h3 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
                                   {highestBidder?.name || 'Winning Team'}
                                 </h3>
 
@@ -1227,11 +1242,11 @@ export default function ProjectorDisplay() {
                                   </p>
                                 )}
 
-                                <div className="pt-2 border-t border-zinc-800 flex items-baseline justify-center sm:justify-start gap-3">
-                                  <span className="text-xs text-zinc-400 uppercase tracking-widest font-semibold">
+                                <div className="pt-1.5 sm:pt-2 border-t border-zinc-800 flex items-baseline justify-center sm:justify-start gap-2 sm:gap-3">
+                                  <span className="text-[10px] sm:text-xs text-zinc-400 uppercase tracking-widest font-semibold">
                                     Final Sale Price:
                                   </span>
-                                  <span className="text-3xl sm:text-4xl font-black text-emerald-400 tracking-tight">
+                                  <span className="text-2xl sm:text-4xl font-black text-emerald-400 tracking-tight">
                                     {formatINR(finalSalePrice || currentBid)}
                                   </span>
                                 </div>
@@ -1241,18 +1256,18 @@ export default function ProjectorDisplay() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center justify-between w-full gap-2 sm:gap-4">
                         {/* BASE PRICE */}
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <span className={`${
-                            isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[11px] sm:text-xs'
-                          } font-bold uppercase tracking-[0.2em] text-zinc-400 block mb-1`}>
+                            isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[10px] sm:text-xs'
+                          } font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-zinc-400 block mb-1 truncate`}>
                             BASE PRICE
                           </span>
                           <div className="flex items-baseline">
                             <span className={`${
-                              isFullscreen ? 'text-4xl sm:text-5xl lg:text-6xl xl:text-7xl' : 'text-3xl sm:text-4xl lg:text-5xl'
-                            } font-black text-white tracking-tight`}>
+                              isFullscreen ? 'text-3xl sm:text-5xl lg:text-6xl xl:text-7xl' : 'text-xl min-[380px]:text-2xl sm:text-4xl lg:text-5xl'
+                            } font-black text-white tracking-tight truncate`}>
                               {formatINR(player.basePrice)}
                             </span>
                           </div>
@@ -1260,42 +1275,42 @@ export default function ProjectorDisplay() {
 
                         {/* Thin vertical separator divider line */}
                         <div className={`w-px ${
-                          isFullscreen ? 'h-16 sm:h-20 lg:h-24 mx-8 sm:mx-12 lg:mx-14' : 'h-14 sm:h-16 mx-6 sm:mx-10'
+                          isFullscreen ? 'h-14 sm:h-20 lg:h-24 mx-4 sm:mx-10 lg:mx-14' : 'h-10 sm:h-14 sm:h-16 mx-2 sm:mx-6 sm:mx-10'
                         } bg-gradient-to-b from-transparent via-zinc-600/60 to-transparent shrink-0`} />
 
                         {/* CURRENT BID or UNSOLD */}
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           {status === 'unsold' ? (
                             <div>
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-1.5 mb-1">
                                 <span className={`${
-                                  isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[11px] sm:text-xs'
-                                } font-bold uppercase tracking-[0.2em] text-zinc-400 block`}>
+                                  isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[10px] sm:text-xs'
+                                } font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-zinc-400 block truncate`}>
                                   STATUS
                                 </span>
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-zinc-700 text-zinc-300 border border-zinc-600">
+                                <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-bold tracking-wider bg-zinc-700 text-zinc-300 border border-zinc-600">
                                   UNSOLD
                                 </span>
                               </div>
 
                               <div className="flex items-baseline">
                                 <span className={`${
-                                  isFullscreen ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-2xl sm:text-3xl lg:text-4xl'
-                                } font-bold tracking-tight text-zinc-400`}>
+                                  isFullscreen ? 'text-2xl sm:text-4xl lg:text-5xl' : 'text-lg min-[380px]:text-xl sm:text-3xl lg:text-4xl'
+                                } font-bold tracking-tight text-zinc-400 truncate`}>
                                   No Bids Placed
                                 </span>
                               </div>
                             </div>
                           ) : (
                             <div>
-                              <div className="flex items-center gap-2 mb-1">
+                              <div className="flex items-center gap-1.5 mb-1">
                                 <span className={`${
-                                  isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[11px] sm:text-xs'
-                                } font-bold uppercase tracking-[0.2em] text-zinc-400 block`}>
+                                  isFullscreen ? 'text-xs sm:text-sm lg:text-base' : 'text-[10px] sm:text-xs'
+                                } font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-zinc-400 block truncate`}>
                                   CURRENT BID
                                 </span>
                                 {status === 'bidding' && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 animate-pulse">
+                                  <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 animate-pulse">
                                     Live
                                   </span>
                                 )}
@@ -1305,38 +1320,46 @@ export default function ProjectorDisplay() {
                                 <span
                                   className={`${
                                     isFullscreen
-                                      ? 'text-4xl sm:text-5xl lg:text-6xl xl:text-7xl'
-                                      : 'text-3xl sm:text-4xl lg:text-5xl'
-                                  } font-black tracking-tight transition-all duration-300 bg-gradient-to-b from-[#fff7c2] via-[#fbbf24] to-[#b45309] bg-clip-text text-transparent drop-shadow-[0_2px_14px_rgba(245,158,11,0.45)] ${
+                                      ? 'text-3xl sm:text-5xl lg:text-6xl xl:text-7xl'
+                                      : 'text-xl min-[380px]:text-2xl sm:text-4xl lg:text-5xl'
+                                  } font-black tracking-tight transition-all duration-300 bg-gradient-to-b from-[#fff7c2] via-[#fbbf24] to-[#b45309] bg-clip-text text-transparent drop-shadow-[0_2px_14px_rgba(245,158,11,0.45)] truncate ${
                                     bidFlashed ? 'scale-105 filter brightness-125' : ''
                                   }`}
                                 >
-                                  {highestBidder ? formatINR(currentBid) : formatINR(player.basePrice)}
+                                  {hasLiveBids ? formatINR(currentBid) : formatINR(player.basePrice)}
                                 </span>
                               </div>
 
-                              {/* Subtext below current bid: Leading team or Opening bid */}
+                              {/* Subtext below current bid: Leading team, Active Bid, or Opening bid */}
                               {highestBidder ? (
-                                <div className={`mt-2 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-zinc-950/80 border border-amber-400/30 ${
-                                  isFullscreen ? 'text-sm' : 'text-xs'
-                                } shadow-sm`}>
+                                <div className={`mt-1.5 sm:mt-2 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg bg-zinc-950/80 border border-amber-400/30 ${
+                                  isFullscreen ? 'text-sm' : 'text-[11px] sm:text-xs'
+                                } shadow-sm max-w-full`}>
                                   {resolveTeamLogo(highestBidder) ? (
                                     <img
                                       src={resolveTeamLogo(highestBidder)}
                                       alt={highestBidder.name}
-                                      className={`${isFullscreen ? 'w-5 h-5' : 'w-4 h-4'} object-contain rounded-full bg-white/10`}
+                                      className={`${isFullscreen ? 'w-5 h-5' : 'w-3.5 sm:w-4 h-3.5 sm:h-4'} object-contain rounded-full bg-white/10 shrink-0`}
                                       onError={(e) => { e.target.style.display = 'none'; }}
                                     />
                                   ) : (
                                     <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
                                   )}
-                                  <span className="text-zinc-400">Leading:</span>
-                                  <span className="font-bold text-white">{highestBidder.name}</span>
+                                  <span className="text-zinc-400 shrink-0">Leading:</span>
+                                  <span className="font-bold text-white truncate">{highestBidder.name}</span>
+                                </div>
+                              ) : hasLiveBids ? (
+                                <div className={`mt-1.5 sm:mt-2 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg bg-zinc-950/80 border border-amber-400/30 ${
+                                  isFullscreen ? 'text-sm' : 'text-[11px] sm:text-xs'
+                                } shadow-sm`}>
+                                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                                  <span className="text-zinc-400">Current Bid:</span>
+                                  <span className="font-bold text-white">{formatINR(currentBid)}</span>
                                 </div>
                               ) : (
-                                <div className={`mt-1.5 ${
-                                  isFullscreen ? 'text-sm sm:text-base' : 'text-xs sm:text-sm'
-                                } text-zinc-400 font-medium`}>
+                                <div className={`mt-1 sm:mt-1.5 ${
+                                  isFullscreen ? 'text-sm sm:text-base' : 'text-[11px] sm:text-xs'
+                                } text-zinc-400 font-medium truncate`}>
                                   Opening bid: {formatINR(player.basePrice)}
                                 </div>
                               )}
