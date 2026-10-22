@@ -120,6 +120,7 @@ export default function ProjectorDisplay() {
   const [soldAnimationPlayerId, setSoldAnimationPlayerId] = useState(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showGreenSweep, setShowGreenSweep] = useState(false);
+  const [soldResultPayload, setSoldResultPayload] = useState(null);
 
   const containerRef = useRef(null);
   const lastCelebratedPlayerIdRef = useRef(null);
@@ -283,6 +284,14 @@ export default function ProjectorDisplay() {
         lastCelebratedPlayerIdRef.current = String(soldPlayerId);
       }
 
+      if (payload) {
+        setSoldResultPayload({
+          playerId: String(soldPlayerId || ''),
+          team: payload.team,
+          amount: payload.amount || payload.player?.soldPrice
+        });
+      }
+
       playSoldSound();
       triggerSoldConfetti();
       setShowGreenSweep(true);
@@ -440,28 +449,28 @@ export default function ProjectorDisplay() {
   const player = state?.currentPlayer;
 
   // Single Source of Truth for SOLD/UNSOLD status:
-  // If player is persisted as sold or unsold in MongoDB, that strictly governs the display!
-  const isPlayerSold = player?.status === 'sold' || state?.status === 'sold';
+  // If player is persisted as sold or unsold in MongoDB (or immediate sale payload received), that strictly governs the display!
+  const isPlayerSold = player?.status === 'sold' || state?.status === 'sold' || Boolean(soldResultPayload && soldResultPayload.playerId === String(player?._id));
   const isPlayerUnsold = !isPlayerSold && (player?.status === 'unsold' || state?.status === 'unsold');
   const status = isPlayerSold ? 'sold' : (isPlayerUnsold ? 'unsold' : (state?.status || 'idle'));
 
-  // Winning team: if sold, prioritize player.soldToTeam, then state.highestBidder, then lastSoldDetails.team
-  const highestBidder = isPlayerSold
-    ? (player?.soldToTeam || state?.highestBidder || state?.lastSoldDetails?.team)
-    : state?.highestBidder;
+  // Winning team: strictly populated from the saved sale result when player is SOLD (never during live bidding)
+  const winningTeam = isPlayerSold
+    ? (player?.soldToTeam || state?.lastSoldDetails?.team || (soldResultPayload?.playerId === String(player?._id) ? soldResultPayload.team : null) || (state?.status === 'sold' ? state?.highestBidder : null))
+    : null;
 
   // Final sale price vs active current bid
   const finalSalePrice = isPlayerSold
-    ? (player?.soldPrice || state?.lastSoldDetails?.amount || state?.currentBid || player?.basePrice || 0)
+    ? (player?.soldPrice || state?.lastSoldDetails?.amount || (soldResultPayload?.playerId === String(player?._id) ? soldResultPayload.amount : null) || state?.currentBid || player?.basePrice || 0)
     : null;
   const currentBid = isPlayerSold
     ? finalSalePrice
     : (state?.currentBid || (player ? player.basePrice : 0));
   const currentRound = state?.currentRound;
   const hasLiveBids = Boolean(
-    highestBidder ||
+    state?.highestBidder ||
     (state?.bidHistory && state.bidHistory.length > 0) ||
-    (state?.status === 'bidding' && currentBid > (player?.basePrice || 0))
+    (state?.currentBid && state.currentBid > (player?.basePrice || 0))
   );
 
   // Maintain card flip state for SOLD players without firing audio or confetti on page reload
@@ -471,6 +480,7 @@ export default function ProjectorDisplay() {
     } else {
       setIsFlipped(false);
       setShowGreenSweep(false);
+      setSoldResultPayload(null);
       if (player?._id && lastCelebratedPlayerIdRef.current === String(player._id)) {
         lastCelebratedPlayerIdRef.current = null;
       }
@@ -1096,9 +1106,9 @@ export default function ProjectorDisplay() {
                   {status === 'sold' && (
                     <div className="mt-2.5 sm:mt-3.5 px-3 sm:px-4 py-1.5 rounded-full bg-white text-zinc-950 font-semibold text-xs sm:text-sm shadow-md flex items-center gap-1.5 border border-zinc-200 animate-fade-in z-10 max-w-full">
                       <span className="text-zinc-600 font-medium">Won by</span>
-                      <span className="text-red-600 font-extrabold truncate max-w-[120px] sm:max-w-none">{highestBidder?.name || 'Winning Team'}</span>
+                      <span className="text-red-600 font-extrabold truncate max-w-[120px] sm:max-w-none">{winningTeam?.name || 'Winning Team'}</span>
                       <span className="text-zinc-400">•</span>
-                      <span className="font-extrabold text-zinc-950 shrink-0">{formatINR(currentBid)}</span>
+                      <span className="font-extrabold text-zinc-950 shrink-0">{formatINR(finalSalePrice || currentBid)}</span>
                     </div>
                   )}
 
@@ -1195,20 +1205,20 @@ export default function ProjectorDisplay() {
                             <div
                               className="backface-hidden rotate-y-180 rounded-2xl bg-gradient-to-br from-zinc-900/95 via-zinc-900 to-zinc-950 border p-3.5 sm:p-6 shadow-2xl flex flex-col sm:flex-row items-center gap-3 sm:gap-6 border-zinc-700"
                               style={{
-                                borderColor: highestBidder?.color ? `${highestBidder.color}80` : '#ef4444',
-                                boxShadow: highestBidder?.color ? `0 10px 30px -10px ${highestBidder.color}40` : '0 10px 30px -10px rgba(239, 68, 68, 0.25)'
+                                borderColor: winningTeam?.color ? `${winningTeam.color}80` : '#ef4444',
+                                boxShadow: winningTeam?.color ? `0 10px 30px -10px ${winningTeam.color}40` : '0 10px 30px -10px rgba(239, 68, 68, 0.25)'
                               }}
                             >
                               {/* Official Team Logo from client/src/team_logo/ */}
                               <div className="relative shrink-0">
                                 <div
                                   className="w-16 h-16 min-[380px]:w-20 min-[380px]:h-20 sm:w-28 sm:h-28 rounded-2xl p-2 bg-zinc-950/80 border flex items-center justify-center shadow-inner overflow-hidden"
-                                  style={{ borderColor: highestBidder?.color || '#52525b' }}
+                                  style={{ borderColor: winningTeam?.color || '#52525b' }}
                                 >
-                                  {resolveTeamLogo(highestBidder) ? (
+                                  {resolveTeamLogo(winningTeam) ? (
                                     <img
-                                      src={resolveTeamLogo(highestBidder)}
-                                      alt={highestBidder?.name || 'Winning Team'}
+                                      src={resolveTeamLogo(winningTeam)}
+                                      alt={winningTeam?.name || 'Winning Team'}
                                       className="w-full h-full object-contain filter drop-shadow-md"
                                       onError={(e) => {
                                         e.target.style.display = 'none';
@@ -1217,9 +1227,9 @@ export default function ProjectorDisplay() {
                                   ) : (
                                     <div
                                       className="w-full h-full rounded-xl flex items-center justify-center font-black text-xl sm:text-2xl text-black shadow-sm"
-                                      style={{ backgroundColor: highestBidder?.color || '#f59e0b' }}
+                                      style={{ backgroundColor: winningTeam?.color || '#f59e0b' }}
                                     >
-                                      {highestBidder?.code || 'HFPL'}
+                                      {winningTeam?.code || 'HFPL'}
                                     </div>
                                   )}
                                 </div>
@@ -1233,12 +1243,12 @@ export default function ProjectorDisplay() {
                                 </div>
 
                                 <h3 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
-                                  {highestBidder?.name || 'Winning Team'}
+                                  {winningTeam?.name || 'Winning Team'}
                                 </h3>
 
-                                {highestBidder?.captain && (
+                                {winningTeam?.captain && (
                                   <p className="text-xs sm:text-sm text-zinc-300 font-medium">
-                                    Captain: <span className="text-white font-bold">{highestBidder.captain}</span>
+                                    Captain: <span className="text-white font-bold">{winningTeam.captain}</span>
                                   </p>
                                 )}
 
@@ -1330,33 +1340,8 @@ export default function ProjectorDisplay() {
                                 </span>
                               </div>
 
-                              {/* Subtext below current bid: Leading team, Active Bid, or Opening bid */}
-                              {highestBidder ? (
-                                <div className={`mt-1.5 sm:mt-2 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg bg-zinc-950/80 border border-amber-400/30 ${
-                                  isFullscreen ? 'text-sm' : 'text-[11px] sm:text-xs'
-                                } shadow-sm max-w-full`}>
-                                  {resolveTeamLogo(highestBidder) ? (
-                                    <img
-                                      src={resolveTeamLogo(highestBidder)}
-                                      alt={highestBidder.name}
-                                      className={`${isFullscreen ? 'w-5 h-5' : 'w-3.5 sm:w-4 h-3.5 sm:h-4'} object-contain rounded-full bg-white/10 shrink-0`}
-                                      onError={(e) => { e.target.style.display = 'none'; }}
-                                    />
-                                  ) : (
-                                    <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                                  )}
-                                  <span className="text-zinc-400 shrink-0">Leading:</span>
-                                  <span className="font-bold text-white truncate">{highestBidder.name}</span>
-                                </div>
-                              ) : hasLiveBids ? (
-                                <div className={`mt-1.5 sm:mt-2 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-lg bg-zinc-950/80 border border-amber-400/30 ${
-                                  isFullscreen ? 'text-sm' : 'text-[11px] sm:text-xs'
-                                } shadow-sm`}>
-                                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                                  <span className="text-zinc-400">Current Bid:</span>
-                                  <span className="font-bold text-white">{formatINR(currentBid)}</span>
-                                </div>
-                              ) : (
+                              {/* Subtext below current bid: Opening bid before first bid */}
+                              {!hasLiveBids && (
                                 <div className={`mt-1 sm:mt-1.5 ${
                                   isFullscreen ? 'text-sm sm:text-base' : 'text-[11px] sm:text-xs'
                                 } text-zinc-400 font-medium truncate`}>
