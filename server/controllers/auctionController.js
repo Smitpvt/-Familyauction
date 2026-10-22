@@ -432,21 +432,25 @@ exports.placeBid = (req, res) => {
       await bidRecord.save();
 
       emitEvent('BID_PLACED', {
-        team: team ? { id: team._id, name: team.name, code: team.code, color: team.color } : null,
+        team: team ? { id: team._id, _id: team._id, name: team.name, code: team.code, color: team.color, logo: team.logo } : null,
         amount: targetAmount,
+        currentBid: targetAmount,
+        highestBidder: team ? { id: team._id, _id: team._id, name: team.name, code: team.code, color: team.color, logo: team.logo } : null,
         increment: isIncremental ? appliedInc : null,
-        playerName: player.name
+        playerName: player.name,
+        status: 'bidding'
       });
 
-      await broadcastStateUpdate({
+      res.json({ success: true, currentBid: targetAmount, highestBidder: team, status: 'bidding' });
+
+      // Run full state broadcast asynchronously so subsequent rapid bids in queue are not blocked
+      broadcastStateUpdate({
         announcement: team
           ? `Bid raised to ₹${targetAmount} by ${team.name}!`
           : isIncremental
           ? `Bid raised by +₹${appliedInc} to ₹${targetAmount}!`
           : `Bid raised to ₹${targetAmount}!`
-      });
-
-      res.json({ success: true, currentBid: targetAmount, highestBidder: team });
+      }).catch((e) => console.error('Background broadcastStateUpdate error:', e));
     } catch (error) {
       console.error('Error in placeBid:', error);
       res.status(500).json({ success: false, message: error.message });
@@ -609,41 +613,69 @@ exports.nextPlayer = async (req, res) => {
     const currentPlayer = await Player.findById(state.currentPlayer);
     const roundId = state.currentRound || currentPlayer.roundId;
 
-    // Find next upcoming player in the same round
+    // Find next upcoming player in the same round (strictly deterministic by orderInRound)
     let nextPlayer = await Player.findOne({
       roundId,
       status: 'upcoming',
       orderInRound: { $gt: currentPlayer.orderInRound }
-    }).sort({ orderInRound: 1 });
+    }).sort({ orderInRound: 1, createdAt: 1, _id: 1 });
 
-    // If none upcoming with higher order, check any upcoming in this round
+    // If none upcoming with higher order, check any remaining upcoming in this round
     if (!nextPlayer) {
       nextPlayer = await Player.findOne({
         roundId,
         status: 'upcoming',
         _id: { $ne: currentPlayer._id }
-      }).sort({ orderInRound: 1 });
+      }).sort({ orderInRound: 1, createdAt: 1, _id: 1 });
     }
 
-    // If all in this round are sold or unsold, check next round
+    // EXPLICIT ROUND COMPLETION: Do NOT automatically start the next round!
     if (!nextPlayer && roundId) {
       const currentRound = await Round.findById(roundId);
+      let nextRound = null;
       if (currentRound) {
-        const nextRound = await Round.findOne({ order: { $gt: currentRound.order } }).sort({ order: 1 });
-        if (nextRound) {
-          nextPlayer = await Player.findOne({ roundId: nextRound._id, status: 'upcoming' }).sort({ orderInRound: 1 });
-          if (nextPlayer) {
-            state.currentRound = nextRound._id;
-          }
-        }
+        nextRound = await Round.findOne({ order: { $gt: currentRound.order } }).sort({ order: 1 });
       }
-    }
 
-    if (!nextPlayer) {
-      state.status = 'completed';
-      await state.save();
-      await broadcastStateUpdate({ announcement: 'All players in this round have been auctioned!' });
-      return res.json({ success: true, message: 'No more upcoming players found.', completed: true });
+      if (nextRound) {
+        // Pause at round boundary until admin explicitly clicks "Move to Next Round"
+        state.status = 'round_completed';
+        state.announcement = `${currentRound ? currentRound.name.toUpperCase() : 'ROUND'} COMPLETED`;
+        await state.save();
+
+        emitEvent('ROUND_COMPLETED', {
+          round: currentRound,
+          nextRound
+        });
+
+        await broadcastStateUpdate({
+          announcement: `${currentRound ? currentRound.name.toUpperCase() : 'ROUND'} COMPLETED`
+        });
+        const fullState = await getFullPopulatedState();
+        return res.json({
+          success: true,
+          roundCompleted: true,
+          currentRound,
+          nextRound,
+          message: `${currentRound ? currentRound.name : 'Round'} completed! Bidding is paused until moving to next round.`,
+          ...fullState
+        });
+      } else {
+        // No further rounds remain: AUCTION COMPLETED
+        state.status = 'completed';
+        state.announcement = 'AUCTION COMPLETED';
+        await state.save();
+
+        emitEvent('AUCTION_COMPLETED', {});
+        await broadcastStateUpdate({ announcement: 'AUCTION COMPLETED' });
+        const fullState = await getFullPopulatedState();
+        return res.json({
+          success: true,
+          completed: true,
+          message: 'All configured rounds and players have been auctioned! AUCTION COMPLETED.',
+          ...fullState
+        });
+      }
     }
 
     // Setup new player, preserving sold/unsold state if already resolved
@@ -804,6 +836,63 @@ exports.setBidIncrement = async (req, res) => {
     await broadcastStateUpdate();
     res.json({ success: true, state });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/auction/advance-round
+exports.advanceRound = async (req, res) => {
+  try {
+    const state = await getOrCreateAuctionState();
+    if (!state.currentRound) {
+      return res.status(400).json({ success: false, message: 'No current round set.' });
+    }
+
+    const currentRound = await Round.findById(state.currentRound);
+    if (!currentRound) {
+      return res.status(404).json({ success: false, message: 'Current round not found.' });
+    }
+
+    const nextRound = await Round.findOne({ order: { $gt: currentRound.order } }).sort({ order: 1 });
+    if (!nextRound) {
+      state.status = 'completed';
+      state.announcement = 'AUCTION COMPLETED';
+      await state.save();
+      await broadcastStateUpdate({ announcement: 'AUCTION COMPLETED' });
+      const fullState = await getFullPopulatedState();
+      return res.json({
+        success: true,
+        completed: true,
+        message: 'No further rounds available. Auction is completed.',
+        ...fullState
+      });
+    }
+
+    // Activate next round
+    state.currentRound = nextRound._id;
+
+    // Find first eligible player in next round (preferring upcoming)
+    let firstPlayer = await Player.findOne({ roundId: nextRound._id, status: 'upcoming' })
+      .sort({ orderInRound: 1, createdAt: 1, _id: 1 });
+    if (!firstPlayer) {
+      firstPlayer = await Player.findOne({ roundId: nextRound._id })
+        .sort({ orderInRound: 1, createdAt: 1, _id: 1 });
+    }
+
+    state.currentPlayer = firstPlayer ? firstPlayer._id : null;
+    state.currentBid = firstPlayer ? firstPlayer.basePrice : 0;
+    state.highestBidder = null;
+    state.bidHistory = [];
+    // Strict requirement: Do not automatically start bidding; admin must explicitly click "Start Bidding"
+    state.status = firstPlayer ? 'ready' : 'idle';
+    state.announcement = `Round ${nextRound.order}: ${nextRound.name}`;
+    await state.save();
+
+    await broadcastStateUpdate({ announcement: `Round changed to: ${nextRound.name}` });
+    const fullState = await getFullPopulatedState();
+    res.json({ success: true, ...fullState });
+  } catch (error) {
+    console.error('Error advancing to next round:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

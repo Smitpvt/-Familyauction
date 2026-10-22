@@ -22,7 +22,7 @@ const auctionStateSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['idle', 'ready', 'bidding', 'paused', 'sold', 'unsold', 'completed'],
+    enum: ['idle', 'ready', 'bidding', 'paused', 'sold', 'unsold', 'round_completed', 'completed'],
     default: 'idle'
   },
   bidIncrementOptions: {

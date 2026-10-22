@@ -11,6 +11,7 @@ import {
   Volume2,
   Gavel,
   Trophy,
+  Award,
   BookOpen,
   Home,
   Play
@@ -112,6 +113,7 @@ export default function ProjectorDisplay() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentView, setCurrentView] = useState('welcome'); // 'welcome' | 'rules' | 'countdown' | 'sets' | 'auction'
   const [rulesPage, setRulesPage] = useState(1); // 1 | 2
+  const [rulesLanguage, setRulesLanguage] = useState('en'); // 'en' | 'mr'
   const [countdown, setCountdown] = useState(5);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [bidFlashed, setBidFlashed] = useState(false);
@@ -137,12 +139,21 @@ export default function ProjectorDisplay() {
 
   // Authoritative View Resolver: decides whether to show Start Screen or Live Auction
   const resolveViewFromState = (backendState, stats) => {
-    if (!backendState || !backendState.currentPlayer) {
+    if (!backendState) {
       return 'welcome';
     }
 
     const cpStatus = backendState.currentPlayer?.status;
     const auctionStatus = backendState.status;
+
+    // 0. If round completed or auction completed -> restore live auction view
+    if (auctionStatus === 'round_completed' || auctionStatus === 'completed') {
+      return 'auction';
+    }
+
+    if (!backendState.currentPlayer) {
+      return 'welcome';
+    }
 
     // 1. If currently in SOLD or UNSOLD status -> restore live auction view
     if (auctionStatus === 'sold' || cpStatus === 'sold' || auctionStatus === 'unsold' || cpStatus === 'unsold') {
@@ -260,17 +271,37 @@ export default function ProjectorDisplay() {
     // Listen for state updates
     const handleStateUpdate = (data) => {
       setAuctionData(data);
-      // Auto-switch to auction view if active bidding, sold, or unsold initiated by admin
-      if (data.state?.status === 'bidding' || data.state?.status === 'sold' || data.state?.status === 'unsold') {
+      // Auto-switch to auction view if active bidding, sold, unsold, or round completed
+      if (
+        data.state?.status === 'bidding' ||
+        data.state?.status === 'sold' ||
+        data.state?.status === 'unsold' ||
+        data.state?.status === 'round_completed' ||
+        data.state?.status === 'completed'
+      ) {
         setCurrentView('auction');
       }
     };
 
-    // Listen for live bid placed
-    const handleBidPlaced = () => {
+    // Listen for live bid placed - immediately updates price & visual feedback with sub-10ms latency
+    const handleBidPlaced = (payload) => {
       playBidSound();
       setBidFlashed(true);
       setTimeout(() => setBidFlashed(false), 750);
+      const newBid = payload?.currentBid ?? payload?.amount;
+      if (newBid != null) {
+        setAuctionData((prev) => {
+          if (!prev || !prev.state) return prev;
+          return {
+            ...prev,
+            state: {
+              ...prev.state,
+              currentBid: newBid,
+              status: 'bidding'
+            }
+          };
+        });
+      }
     };
 
     // Listen for SOLD event (strictly runs celebrations only on genuine incoming socket events)
@@ -299,7 +330,6 @@ export default function ProjectorDisplay() {
 
       setIsFlipped(true);
       setCurrentView('auction');
-      fetchState(false);
     };
 
     // Listen for UNSOLD event
@@ -314,7 +344,6 @@ export default function ProjectorDisplay() {
 
       playUnsoldSound();
       setCurrentView('auction');
-      fetchState(false);
     };
 
     // Listen for PLAYER_DELETED event
@@ -322,11 +351,50 @@ export default function ProjectorDisplay() {
       fetchState(false);
     };
 
+    // Reconnection resynchronization without re-playing celebrations
+    const handleConnect = () => {
+      fetchState(false);
+    };
+
+    const handleRoundCompleted = (payload) => {
+      if (payload?.round) {
+        setAuctionData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            state: {
+              ...prev.state,
+              status: 'round_completed',
+              currentRound: payload.round
+            }
+          };
+        });
+      }
+      setCurrentView('auction');
+    };
+
+    const handleAuctionCompleted = () => {
+      setAuctionData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          state: {
+            ...prev.state,
+            status: 'completed'
+          }
+        };
+      });
+      setCurrentView('auction');
+    };
+
+    socket.on('connect', handleConnect);
     socket.on('AUCTION_STATE_UPDATE', handleStateUpdate);
     socket.on('BID_PLACED', handleBidPlaced);
     socket.on('PLAYER_SOLD', handlePlayerSold);
     socket.on('PLAYER_UNSOLD', handlePlayerUnsold);
     socket.on('PLAYER_DELETED', handlePlayerDeleted);
+    socket.on('ROUND_COMPLETED', handleRoundCompleted);
+    socket.on('AUCTION_COMPLETED', handleAuctionCompleted);
 
     // Keyboard shortcut 'F' for fullscreen
     const handleKeyDown = (e) => {
@@ -336,12 +404,23 @@ export default function ProjectorDisplay() {
     };
     window.addEventListener('keydown', handleKeyDown);
 
+    // Heartbeat fallback to ensure projector display stays synchronized even if websocket drops
+    const heartbeatTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchState(false);
+      }
+    }, 3000);
+
     return () => {
+      clearInterval(heartbeatTimer);
+      socket.off('connect', handleConnect);
       socket.off('AUCTION_STATE_UPDATE', handleStateUpdate);
       socket.off('BID_PLACED', handleBidPlaced);
       socket.off('PLAYER_SOLD', handlePlayerSold);
       socket.off('PLAYER_UNSOLD', handlePlayerUnsold);
       socket.off('PLAYER_DELETED', handlePlayerDeleted);
+      socket.off('ROUND_COMPLETED', handleRoundCompleted);
+      socket.off('AUCTION_COMPLETED', handleAuctionCompleted);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -449,10 +528,25 @@ export default function ProjectorDisplay() {
   const player = state?.currentPlayer;
 
   // Single Source of Truth for SOLD/UNSOLD status:
-  // If player is persisted as sold or unsold in MongoDB (or immediate sale payload received), that strictly governs the display!
-  const isPlayerSold = player?.status === 'sold' || state?.status === 'sold' || Boolean(soldResultPayload && soldResultPayload.playerId === String(player?._id));
-  const isPlayerUnsold = !isPlayerSold && (player?.status === 'unsold' || state?.status === 'unsold');
-  const status = isPlayerSold ? 'sold' : (isPlayerUnsold ? 'unsold' : (state?.status || 'idle'));
+  const isRoundCompleted = state?.status === 'round_completed';
+  const isAuctionCompleted = state?.status === 'completed';
+
+  const isPlayerSold = !isRoundCompleted && !isAuctionCompleted && (
+    state?.status === 'sold' ||
+    Boolean(soldResultPayload && soldResultPayload.playerId === String(player?._id)) ||
+    (player?.status === 'sold' && !['bidding', 'ready', 'paused', 'idle', 'round_completed', 'completed'].includes(state?.status))
+  );
+
+  const isPlayerUnsold = !isRoundCompleted && !isAuctionCompleted && !isPlayerSold && (
+    state?.status === 'unsold' ||
+    (player?.status === 'unsold' && !['bidding', 'ready', 'paused', 'idle', 'round_completed', 'completed'].includes(state?.status))
+  );
+
+  const status = isRoundCompleted
+    ? 'round_completed'
+    : (isAuctionCompleted
+        ? 'completed'
+        : (isPlayerSold ? 'sold' : (isPlayerUnsold ? 'unsold' : (state?.status || 'idle'))));
 
   // Winning team: strictly populated from the saved sale result when player is SOLD (never during live bidding)
   const winningTeam = isPlayerSold
@@ -779,13 +873,40 @@ export default function ProjectorDisplay() {
                 </p>
               </div>
 
-              {/* Page Indicator Pill */}
-              <div className="px-2.5 sm:px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/40 text-[#d4af37] text-[11px] sm:text-xs font-bold tracking-wider uppercase ml-auto sm:ml-0">
-                PAGE {rulesPage} OF 2
+              {/* English | Marathi Language Toggle + Page Indicator Pill */}
+              <div className="flex items-center gap-2 ml-auto sm:ml-0">
+                <div className="inline-flex items-center rounded-full bg-zinc-900 border border-zinc-700/80 p-0.5 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setRulesLanguage('en')}
+                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                      rulesLanguage === 'en'
+                        ? 'bg-[#d4af37] text-zinc-950 shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    English
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRulesLanguage('mr')}
+                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                      rulesLanguage === 'mr'
+                        ? 'bg-[#d4af37] text-zinc-950 shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    मराठी
+                  </button>
+                </div>
+
+                <div className="px-2.5 sm:px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/40 text-[#d4af37] text-[11px] sm:text-xs font-bold tracking-wider uppercase">
+                  PAGE {rulesPage} OF 2
+                </div>
               </div>
             </div>
 
-            {/* 5 Rules for Selected Page */}
+            {/* 5 Rules for Selected Page (Language Toggled) */}
             <div className="flex-1 flex flex-col justify-around py-3 sm:py-4 gap-2.5 sm:gap-3 overflow-y-auto">
               {(rulesPage === 1 ? AUCTION_RULES.slice(0, 5) : AUCTION_RULES.slice(5, 10)).map((rule) => (
                 <div
@@ -797,16 +918,13 @@ export default function ProjectorDisplay() {
                     {rule.number}
                   </div>
 
-                  {/* Rule Content */}
-                  <div className="flex-1 min-w-0 space-y-0.5 sm:space-y-1">
+                  {/* Rule Content - Render only selected language */}
+                  <div className="flex-1 min-w-0 space-y-1">
                     <h3 className="text-sm sm:text-base font-bold text-white tracking-wide">
-                      {rule.title}
+                      {rulesLanguage === 'mr' ? rule.titleMarathi : rule.title}
                     </h3>
                     <p className="text-xs sm:text-sm md:text-base text-zinc-100 font-medium leading-relaxed">
-                      {rule.english}
-                    </p>
-                    <p className="text-[11px] sm:text-xs md:text-sm text-zinc-400 font-normal leading-relaxed">
-                      {rule.marathi}
+                      {rulesLanguage === 'mr' ? rule.marathi : rule.english}
                     </p>
                   </div>
                 </div>
@@ -935,7 +1053,120 @@ export default function ProjectorDisplay() {
 
         {/* VIEW C: PROJECTOR PLAYER AUCTION SCREEN */}
         {currentView === 'auction' && (
-          !player ? (
+          status === 'round_completed' ? (
+            /* Explicit Round Completed Screen (16:9 Projector Optimized) */
+            <div className="w-full max-w-4xl text-center p-8 sm:p-14 md:p-16 rounded-3xl bg-gradient-to-b from-zinc-900/95 via-zinc-950/98 to-black border-2 border-amber-500/50 shadow-[0_0_80px_rgba(245,158,11,0.25)] animate-fade-in my-auto relative overflow-hidden backdrop-blur-xl">
+              {/* Golden Ambient Glows */}
+              <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
+
+              {/* Glowing Trophy Emblem */}
+              <div className="relative inline-flex items-center justify-center mb-6">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-b from-amber-500/20 via-zinc-900 to-black border-2 border-amber-400/60 flex items-center justify-center shadow-2xl shadow-amber-500/30">
+                  <Trophy className="w-12 h-12 sm:w-16 sm:h-16 text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]" />
+                </div>
+              </div>
+
+              {/* Pulsing Status Pill */}
+              <div className="mb-4">
+                <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-black tracking-widest uppercase shadow-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+                  <span>SET COMPLETED • AUCTION PAUSED</span>
+                </div>
+              </div>
+
+              {/* Dynamic Round Name Headline */}
+              <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight text-white mb-4 leading-tight drop-shadow-lg">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-[#d4af37] to-amber-100">
+                  {currentRound?.name ? currentRound.name.toUpperCase() : 'ROUND'}
+                </span>{' '}
+                COMPLETED
+              </h1>
+
+              {/* Informative Subtext */}
+              <p className="text-sm sm:text-lg md:text-xl text-zinc-300 font-medium max-w-2xl mx-auto leading-relaxed mb-8">
+                All eligible players in this round/set have been auctioned. The auction is held at this round boundary.
+              </p>
+
+              {/* Tournament Summary Metrics */}
+              <div className="grid grid-cols-3 gap-3 sm:gap-6 max-w-xl mx-auto border-t border-b border-zinc-800/80 py-5 sm:py-6 mb-8">
+                <div className="text-center">
+                  <span className="block text-2xl sm:text-4xl font-black text-white tracking-tight">
+                    {auctionData?.stats?.soldPlayers || 0}
+                  </span>
+                  <span className="uppercase tracking-widest text-[10px] sm:text-xs text-zinc-400 font-bold">
+                    Players Sold
+                  </span>
+                </div>
+                <div className="text-center border-x border-zinc-800">
+                  <span className="block text-2xl sm:text-4xl font-black text-zinc-300 tracking-tight">
+                    {auctionData?.stats?.unsoldPlayers || 0}
+                  </span>
+                  <span className="uppercase tracking-widest text-[10px] sm:text-xs text-zinc-400 font-bold">
+                    Unsold
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-2xl sm:text-4xl font-black text-amber-400 tracking-tight">
+                    {auctionData?.teams?.length || 4}
+                  </span>
+                  <span className="uppercase tracking-widest text-[10px] sm:text-xs text-zinc-400 font-bold">
+                    Teams
+                  </span>
+                </div>
+              </div>
+
+              {/* Waiting Indicator */}
+              <div className="inline-flex items-center gap-2 text-xs sm:text-sm text-zinc-400 font-semibold tracking-wide">
+                <span className="w-2 h-2 rounded-full bg-zinc-500 animate-pulse" />
+                <span>Waiting for auctioneer to start the next round...</span>
+              </div>
+            </div>
+          ) : status === 'completed' ? (
+            /* Explicit Auction Completed Screen */
+            <div className="w-full max-w-4xl text-center p-8 sm:p-14 md:p-16 rounded-3xl bg-gradient-to-b from-zinc-900/95 via-zinc-950/98 to-black border-2 border-emerald-500/50 shadow-[0_0_80px_rgba(16,185,129,0.25)] animate-fade-in my-auto relative overflow-hidden backdrop-blur-xl">
+              <div className="relative inline-flex items-center justify-center mb-6">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-b from-emerald-500/20 via-zinc-900 to-black border-2 border-emerald-400/60 flex items-center justify-center shadow-2xl shadow-emerald-500/30">
+                  <Award className="w-12 h-12 sm:w-16 sm:h-16 text-emerald-400 drop-shadow-[0_0_12px_rgba(52,211,153,0.6)]" />
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-xs sm:text-sm font-black tracking-widest uppercase shadow-sm">
+                  <span>TOURNAMENT FINISHED</span>
+                </div>
+              </div>
+
+              <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight text-white mb-4 leading-tight drop-shadow-lg">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-200 via-emerald-400 to-teal-200">
+                  AUCTION COMPLETED
+                </span>
+              </h1>
+
+              <p className="text-sm sm:text-lg md:text-xl text-zinc-300 font-medium max-w-2xl mx-auto leading-relaxed mb-8">
+                All rounds and players have been auctioned! Congratulations to all franchise teams on completing their squads!
+              </p>
+
+              <div className="grid grid-cols-2 gap-4 max-w-md mx-auto border-t border-zinc-800/80 pt-6">
+                <div className="text-center">
+                  <span className="block text-2xl sm:text-4xl font-black text-white">
+                    {auctionData?.stats?.soldPlayers || 0}
+                  </span>
+                  <span className="uppercase tracking-widest text-[10px] sm:text-xs text-zinc-400 font-bold">
+                    Total Players Sold
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-2xl sm:text-4xl font-black text-emerald-400">
+                    {auctionData?.teams?.length || 4}
+                  </span>
+                  <span className="uppercase tracking-widest text-[10px] sm:text-xs text-zinc-400 font-bold">
+                    Squads Finalized
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : !player ? (
             /* No player currently selected / idle placeholder */
             <div className="w-full max-w-xl text-center p-10 rounded-2xl bg-[#151618] border border-zinc-800 animate-fade-in my-auto">
               <img

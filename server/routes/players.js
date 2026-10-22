@@ -12,6 +12,7 @@ router.post('/', authMiddleware, playerController.createPlayer);
 router.put('/:id', authMiddleware, playerController.updatePlayer);
 router.delete('/:id', authMiddleware, playerController.deletePlayer);
 router.post('/:id/re-auction', authMiddleware, playerController.reauctionPlayer);
+router.post('/reorder', authMiddleware, playerController.reorderPlayers);
 router.post('/bulk-import', authMiddleware, playerController.bulkImportPlayers);
 
 module.exports = router;

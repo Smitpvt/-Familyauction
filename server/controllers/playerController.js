@@ -9,6 +9,20 @@ const { recalculateTeamPurse } = require('./teamController');
 const { broadcastStateUpdate } = require('./auctionController');
 const { emitEvent } = require('../socket');
 
+// Re-indexes players within a specific round to strict, gapless 1..N sequence
+const normalizeRoundSequence = async (roundId) => {
+  if (!roundId) return;
+  const players = await Player.find({ roundId }).sort({ orderInRound: 1, createdAt: 1, _id: 1 });
+  if (players.length === 0) return;
+  const bulkOps = players.map((p, idx) => ({
+    updateOne: {
+      filter: { _id: p._id },
+      update: { $set: { orderInRound: idx + 1 } }
+    }
+  }));
+  await Player.bulkWrite(bulkOps);
+};
+
 exports.getAllPlayers = async (req, res) => {
   try {
     const { roundId, status, category, search } = req.query;
@@ -23,8 +37,15 @@ exports.getAllPlayers = async (req, res) => {
 
     const players = await Player.find(filter)
       .populate('roundId', 'name order')
-      .populate('soldToTeam', 'name code color logo')
-      .sort({ orderInRound: 1, createdAt: 1 });
+      .populate('soldToTeam', 'name code color logo');
+
+    // Sort by Round order first, then orderInRound (1..N) within each round
+    players.sort((a, b) => {
+      const orderA = a.roundId?.order ?? 9999;
+      const orderB = b.roundId?.order ?? 9999;
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.orderInRound || 1) - (b.orderInRound || 1);
+    });
 
     res.json({ success: true, players });
   } catch (error) {
@@ -63,11 +84,15 @@ exports.createPlayer = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Player name is required' });
     }
 
-    // Determine order in round if not provided
-    let calculatedOrder = orderInRound ? Number(orderInRound) : 1;
-    if (roundId && !orderInRound) {
-      const lastPlayer = await Player.findOne({ roundId }).sort({ orderInRound: -1 });
-      if (lastPlayer) calculatedOrder = (lastPlayer.orderInRound || 0) + 1;
+    // Determine sequence within the assigned round/set
+    let calculatedOrder = orderInRound ? Number(orderInRound) : null;
+    if (roundId) {
+      if (!calculatedOrder || calculatedOrder < 1) {
+        const lastPlayer = await Player.findOne({ roundId }).sort({ orderInRound: -1 });
+        calculatedOrder = (lastPlayer?.orderInRound || 0) + 1;
+      }
+    } else {
+      calculatedOrder = calculatedOrder || 1;
     }
 
     const player = new Player({
@@ -85,7 +110,28 @@ exports.createPlayer = async (req, res) => {
     });
 
     await player.save();
+
+    if (roundId) {
+      // Re-normalize players in this round so sequence is gapless and deterministic
+      const others = await Player.find({ roundId, _id: { $ne: player._id } })
+        .sort({ orderInRound: 1, createdAt: 1, _id: 1 });
+      const insertIdx = Math.min(Math.max(0, calculatedOrder - 1), others.length);
+      others.splice(insertIdx, 0, player);
+      const bulkOps = others.map((p, idx) => ({
+        updateOne: {
+          filter: { _id: p._id },
+          update: { $set: { orderInRound: idx + 1 } }
+        }
+      }));
+      await Player.bulkWrite(bulkOps);
+    }
+
     const populated = await Player.findById(player._id).populate('roundId', 'name order');
+    
+    // Broadcast state and notify clients of player changes
+    if (broadcastStateUpdate) await broadcastStateUpdate();
+    emitEvent('PLAYERS_REORDERED', { roundId });
+
     res.status(201).json({ success: true, player: populated });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -111,6 +157,10 @@ exports.updatePlayer = async (req, res) => {
     const player = await Player.findById(req.params.id);
     if (!player) return res.status(404).json({ success: false, message: 'Player not found' });
 
+    const oldRoundId = player.roundId ? String(player.roundId) : null;
+    const newRoundId = roundId !== undefined ? (roundId ? String(roundId) : null) : oldRoundId;
+    const isRoundChanged = oldRoundId !== newRoundId;
+
     if (name) player.name = name.trim();
     if (category) player.category = category;
     if (battingStyle !== undefined) player.battingStyle = battingStyle;
@@ -120,17 +170,71 @@ exports.updatePlayer = async (req, res) => {
     if (description !== undefined) player.description = description;
     if (stats) player.stats = { ...player.stats, ...stats };
     if (roundId !== undefined) player.roundId = roundId || null;
-    if (orderInRound !== undefined) player.orderInRound = Number(orderInRound);
 
     // If admin explicitly resets status from unsold to upcoming
     if (status && ['upcoming', 'unsold'].includes(status) && player.status !== 'sold') {
       player.status = status;
     }
 
-    await player.save();
+    if (isRoundChanged) {
+      // 1. Moving player between rounds:
+      if (newRoundId) {
+        if (orderInRound !== undefined && Number(orderInRound) > 0) {
+          player.orderInRound = Number(orderInRound);
+        } else {
+          const lastInNew = await Player.findOne({ roundId: newRoundId }).sort({ orderInRound: -1 });
+          player.orderInRound = (lastInNew?.orderInRound || 0) + 1;
+        }
+      } else {
+        player.orderInRound = 1;
+      }
+      await player.save();
+
+      // Normalize sequence in BOTH the old round and the new round!
+      if (oldRoundId) await normalizeRoundSequence(oldRoundId);
+      if (newRoundId) {
+        const othersInNew = await Player.find({ roundId: newRoundId, _id: { $ne: player._id } })
+          .sort({ orderInRound: 1, createdAt: 1, _id: 1 });
+        const targetPos = Math.max(1, Math.min(player.orderInRound, othersInNew.length + 1));
+        othersInNew.splice(targetPos - 1, 0, player);
+        const bulkOps = othersInNew.map((p, idx) => ({
+          updateOne: {
+            filter: { _id: p._id },
+            update: { $set: { orderInRound: idx + 1 } }
+          }
+        }));
+        await Player.bulkWrite(bulkOps);
+      }
+    } else {
+      // 2. Same round, but sequence number changed:
+      if (orderInRound !== undefined && Number(orderInRound) !== player.orderInRound && oldRoundId) {
+        const targetOrder = Math.max(1, Number(orderInRound));
+        player.orderInRound = targetOrder;
+        await player.save();
+
+        const others = await Player.find({ roundId: oldRoundId, _id: { $ne: player._id } })
+          .sort({ orderInRound: 1, createdAt: 1, _id: 1 });
+        const insertIdx = Math.min(targetOrder - 1, others.length);
+        others.splice(insertIdx, 0, player);
+        const bulkOps = others.map((p, idx) => ({
+          updateOne: {
+            filter: { _id: p._id },
+            update: { $set: { orderInRound: idx + 1 } }
+          }
+        }));
+        await Player.bulkWrite(bulkOps);
+      } else {
+        if (orderInRound !== undefined) player.orderInRound = Number(orderInRound);
+        await player.save();
+      }
+    }
+
     const populated = await Player.findById(player._id)
       .populate('roundId', 'name order')
       .populate('soldToTeam', 'name code color logo');
+
+    if (broadcastStateUpdate) await broadcastStateUpdate();
+    emitEvent('PLAYERS_REORDERED', { roundId: newRoundId || oldRoundId });
 
     res.json({ success: true, player: populated });
   } catch (error) {
@@ -241,6 +345,11 @@ exports.deletePlayer = async (req, res) => {
     // Commit MongoDB transaction if one was opened
     if (inTransaction && session) {
       await session.commitTransaction();
+    }
+
+    // Normalize remaining players in this round to gapless 1..N order
+    if (player.roundId) {
+      await normalizeRoundSequence(player.roundId);
     }
 
     // 7. Reconcile live AuctionState if this player was active on stage
@@ -409,3 +518,104 @@ exports.bulkImportPlayers = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// POST /api/players/reorder
+exports.reorderPlayers = async (req, res) => {
+  try {
+    const { playerId, newOrder, direction, roundId, playerIds } = req.body;
+
+    let targetRoundId = roundId;
+    let targetPlayer = null;
+
+    if (playerId) {
+      targetPlayer = await Player.findById(playerId);
+      if (!targetPlayer) {
+        return res.status(404).json({ success: false, message: 'Player not found.' });
+      }
+      targetRoundId = targetRoundId || targetPlayer.roundId;
+    }
+
+    if (!targetRoundId) {
+      return res.status(400).json({ success: false, message: 'Target round/set is required to reorder players.' });
+    }
+
+    // Fetch all players assigned to this round, sorted deterministically
+    const playersInRound = await Player.find({ roundId: targetRoundId })
+      .sort({ orderInRound: 1, createdAt: 1, _id: 1 });
+
+    if (playersInRound.length === 0) {
+      return res.status(400).json({ success: false, message: 'No players found in this round.' });
+    }
+
+    let orderedList = [...playersInRound];
+
+    if (Array.isArray(playerIds) && playerIds.length > 0) {
+      // Reordering via full explicit array of IDs
+      const idMap = new Map(playersInRound.map(p => [String(p._id), p]));
+      const newList = [];
+      for (const id of playerIds) {
+        if (idMap.has(String(id))) {
+          newList.push(idMap.get(String(id)));
+          idMap.delete(String(id));
+        }
+      }
+      // Any remaining players appended
+      for (const remaining of idMap.values()) {
+        newList.push(remaining);
+      }
+      orderedList = newList;
+    } else if (targetPlayer && direction) {
+      const currentIndex = orderedList.findIndex(p => String(p._id) === String(targetPlayer._id));
+      if (currentIndex !== -1) {
+        if (direction === 'up' && currentIndex > 0) {
+          const temp = orderedList[currentIndex];
+          orderedList[currentIndex] = orderedList[currentIndex - 1];
+          orderedList[currentIndex - 1] = temp;
+        } else if (direction === 'down' && currentIndex < orderedList.length - 1) {
+          const temp = orderedList[currentIndex];
+          orderedList[currentIndex] = orderedList[currentIndex + 1];
+          orderedList[currentIndex + 1] = temp;
+        }
+      }
+    } else if (targetPlayer && newOrder !== undefined) {
+      const targetPos = Math.max(1, Math.min(Number(newOrder) || 1, orderedList.length));
+      const currentIndex = orderedList.findIndex(p => String(p._id) === String(targetPlayer._id));
+      if (currentIndex !== -1) {
+        const [removed] = orderedList.splice(currentIndex, 1);
+        orderedList.splice(targetPos - 1, 0, removed);
+      }
+    }
+
+    // Persist normalized orderInRound (1..N) to eliminate duplicates or gaps
+    const bulkOps = orderedList.map((player, idx) => ({
+      updateOne: {
+        filter: { _id: player._id },
+        update: { $set: { orderInRound: idx + 1 } }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await Player.bulkWrite(bulkOps);
+    }
+
+    // Fetch the updated players to return
+    const updatedPlayers = await Player.find({ roundId: targetRoundId })
+      .populate('roundId', 'name order')
+      .populate('soldToTeam', 'name code color logo')
+      .sort({ orderInRound: 1, createdAt: 1 });
+
+    // Broadcast state update so all screens (Projector, Admin Panel) reflect any stats / ordering changes safely
+    await broadcastStateUpdate();
+
+    emitEvent('PLAYERS_REORDERED', {
+      roundId: targetRoundId,
+      players: updatedPlayers
+    });
+
+    res.json({ success: true, message: 'Player sequence updated successfully.', players: updatedPlayers });
+  } catch (error) {
+    console.error('Error reordering players:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

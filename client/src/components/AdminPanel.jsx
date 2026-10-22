@@ -3,7 +3,7 @@ import {
   Gavel, Users, UserPlus, Layers, RotateCcw, Play, Pause, ChevronRight,
   ChevronLeft, Award, XCircle, DollarSign, Upload, Trash2, Edit2, CheckCircle2,
   AlertTriangle, RefreshCw, LogOut, ExternalLink, FileSpreadsheet, ShieldAlert,
-  Shield, Search, Radio, X, Menu
+  Shield, Search, Radio, X, Menu, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { auctionAPI, teamsAPI, playersAPI, roundsAPI, uploadAPI } from '../services/api';
 import { getSocket } from '../services/socket';
@@ -21,6 +21,7 @@ export default function AdminPanel({ onLogout }) {
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
 
   // Filter / Search for player table
@@ -52,8 +53,20 @@ export default function AdminPanel({ onLogout }) {
   const [playerForm, setPlayerForm] = useState({
     name: '', category: 'All-rounder', battingStyle: 'Right Hand Bat',
     bowlingStyle: 'Right Arm Medium', basePrice: 200, photo: '',
-    description: '', roundId: '', matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0
+    description: '', roundId: '', orderInRound: 1, matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0
   });
+
+  // Calculate the next sequence number (1..N) within a specific round/set
+  const getNextSequenceForRound = (targetRoundId, excludePlayerId = null) => {
+    if (!targetRoundId) return 1;
+    const playersInRound = players.filter((p) => {
+      const rId = p.roundId?._id ? String(p.roundId._id) : (p.roundId ? String(p.roundId) : '');
+      const isTarget = rId === String(targetRoundId);
+      const isExcluded = excludePlayerId && String(p._id) === String(excludePlayerId);
+      return isTarget && !isExcluded;
+    });
+    return playersInRound.length + 1;
+  };
 
   const [teamForm, setTeamForm] = useState({
     name: '', code: '', captain: '', color: '#18181b', startingPurse: 10000, logo: ''
@@ -66,9 +79,9 @@ export default function AdminPanel({ onLogout }) {
   const [csvContent, setCsvContent] = useState('');
 
   // Fetch full data
-  const fetchData = async () => {
+  const fetchData = async (showLoadingSpinner = true) => {
     try {
-      setLoading(true);
+      if (showLoadingSpinner) setLoading(true);
       const [stateRes, teamsRes, roundsRes, playersRes] = await Promise.all([
         auctionAPI.getState(),
         teamsAPI.getAll(),
@@ -93,7 +106,7 @@ export default function AdminPanel({ onLogout }) {
       console.error('Error fetching admin data:', err);
       showMessage('Error loading auction data from server.', 'error');
     } finally {
-      setLoading(false);
+      if (showLoadingSpinner) setLoading(false);
     }
   };
 
@@ -101,29 +114,120 @@ export default function AdminPanel({ onLogout }) {
     fetchData();
 
     const socket = getSocket();
+    setSocketConnected(Boolean(socket?.connected));
+
+    const handleConnect = () => {
+      setSocketConnected(true);
+      socket.emit('REQUEST_STATE');
+      fetchData(false);
+    };
+
+    const handleDisconnect = () => {
+      setSocketConnected(false);
+    };
+
     const handleStateUpdate = (data) => {
-      if (data.state) setAuctionState(data.state);
-      if (data.stats) setStats(data.stats);
-      if (data.teams && data.teams.length > 0) {
+      const nextState = data?.state || (data?.currentBid !== undefined ? data : null);
+      if (nextState) setAuctionState(nextState);
+      if (data?.stats) setStats(data.stats);
+      if (data?.teams && data.teams.length > 0) {
         setTeams(data.teams);
         setSelectedBiddingTeamId((prev) => prev || data.teams[0]._id);
       }
     };
 
-    const handleResolution = () => {
-      fetchData();
+    // Low-latency immediate bid reflection without waiting for full state poll
+    const handleBidPlaced = (data) => {
+      const newBid = data?.currentBid ?? data?.amount;
+      if (newBid != null) {
+        setAuctionState((prev) => {
+          if (!prev) {
+            fetchData(false);
+            return prev;
+          }
+          return {
+            ...prev,
+            currentBid: newBid,
+            highestBidder: data.highestBidder || data.team || prev.highestBidder,
+            status: 'bidding'
+          };
+        });
+      }
     };
 
+    const handlePlayersReordered = () => {
+      // Soft background refresh of players list without resetting UI
+      playersAPI.getAll().then((res) => {
+        if (res.data?.success) setPlayers(res.data.players);
+      }).catch(console.error);
+    };
+
+    const handleResolution = () => {
+      // Soft background refresh without wiping UI
+      fetchData(false);
+    };
+
+    const handleRoundCompleted = (data) => {
+      setAuctionState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          status: 'round_completed',
+          currentRound: data?.round || prev.currentRound
+        };
+      });
+    };
+
+    const handleAuctionCompleted = () => {
+      setAuctionState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          status: 'completed'
+        };
+      });
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
     socket.on('AUCTION_STATE_UPDATE', handleStateUpdate);
+    socket.on('BID_PLACED', handleBidPlaced);
+    socket.on('PLAYERS_REORDERED', handlePlayersReordered);
     socket.on('PLAYER_SOLD', handleResolution);
     socket.on('PLAYER_UNSOLD', handleResolution);
     socket.on('PLAYER_DELETED', handleResolution);
+    socket.on('ROUND_COMPLETED', handleRoundCompleted);
+    socket.on('AUCTION_COMPLETED', handleAuctionCompleted);
+
+    // Request fresh state immediately if socket is already connected
+    if (socket?.connected) {
+      socket.emit('REQUEST_STATE');
+    }
+
+    // Safety heartbeat interval: sync state every 2.5s if active so Admin Panel is always synchronized
+    const heartbeatTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        auctionAPI.getState().then((res) => {
+          if (res.data?.success && res.data.state) {
+            setAuctionState(res.data.state);
+            if (res.data.stats) setStats(res.data.stats);
+          }
+        }).catch(() => {});
+      }
+    }, 2500);
 
     return () => {
+      clearInterval(heartbeatTimer);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
       socket.off('AUCTION_STATE_UPDATE', handleStateUpdate);
+      socket.off('BID_PLACED', handleBidPlaced);
+      socket.off('PLAYERS_REORDERED', handlePlayersReordered);
       socket.off('PLAYER_SOLD', handleResolution);
       socket.off('PLAYER_UNSOLD', handleResolution);
       socket.off('PLAYER_DELETED', handleResolution);
+      socket.off('ROUND_COMPLETED', handleRoundCompleted);
+      socket.off('AUCTION_COMPLETED', handleAuctionCompleted);
     };
   }, []);
 
@@ -157,8 +261,18 @@ export default function AdminPanel({ onLogout }) {
   const handleStartBidding = async () => {
     try {
       setActionLoading(true);
-      await auctionAPI.startBidding();
+      const res = await auctionAPI.startBidding();
+      if (res.data?.state) {
+        setAuctionState(res.data.state);
+      } else {
+        setAuctionState((prev) => ({
+          ...prev,
+          status: 'bidding',
+          currentBid: prev?.currentBid || prev?.currentPlayer?.basePrice || 200
+        }));
+      }
       showMessage('Bidding session started!');
+      fetchData(false);
     } catch (err) {
       showMessage(err.response?.data?.message || 'Error starting bidding', 'error');
     } finally {
@@ -169,7 +283,16 @@ export default function AdminPanel({ onLogout }) {
   const handleTogglePause = async () => {
     try {
       setActionLoading(true);
-      await auctionAPI.togglePause();
+      const res = await auctionAPI.togglePause();
+      if (res.data?.state) {
+        setAuctionState(res.data.state);
+      } else {
+        setAuctionState((prev) => ({
+          ...prev,
+          status: prev?.status === 'paused' ? 'bidding' : 'paused'
+        }));
+      }
+      fetchData(false);
     } catch (err) {
       showMessage(err.response?.data?.message || 'Error toggling pause', 'error');
     } finally {
@@ -195,11 +318,67 @@ export default function AdminPanel({ onLogout }) {
   const handleNextPlayer = async () => {
     try {
       setActionLoading(true);
-      await auctionAPI.nextPlayer();
-      showMessage('Moved to next player.');
-      fetchData();
+      const res = await auctionAPI.nextPlayer();
+      if (res.data?.roundCompleted) {
+        showMessage(res.data.message || 'Round completed! Click "Move to Next Round" when ready.', 'info');
+      } else if (res.data?.auctionCompleted) {
+        showMessage('All rounds completed! Tournament auction is finished.', 'success');
+      } else {
+        showMessage('Moved to next player.');
+      }
+      fetchData(false);
     } catch (err) {
       showMessage(err.response?.data?.message || 'Error moving to next player', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAdvanceRound = async () => {
+    try {
+      setActionLoading(true);
+      const res = await auctionAPI.advanceRound();
+      showMessage(res.data?.message || 'Moved to next round! Player is ready for auction.');
+      fetchData(false);
+    } catch (err) {
+      showMessage(err.response?.data?.message || 'Error moving to next round', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMovePlayer = async (playerId, direction) => {
+    try {
+      setActionLoading(true);
+      const res = await playersAPI.reorder({ playerId, direction });
+      if (res.data?.success) {
+        showMessage(`Player moved ${direction}!`);
+        const pRes = await playersAPI.getAll();
+        if (pRes.data?.success) setPlayers(pRes.data.players);
+      }
+    } catch (err) {
+      showMessage(err.response?.data?.message || `Error moving player ${direction}`, 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUpdatePlayerSequence = async (playerId, newOrder) => {
+    const orderNum = parseInt(newOrder, 10);
+    if (isNaN(orderNum) || orderNum < 1) {
+      showMessage('Sequence must be a positive integer', 'error');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      const res = await playersAPI.reorder({ playerId, newOrder: orderNum });
+      if (res.data?.success) {
+        showMessage(`Player sequence updated to #${orderNum}!`);
+        const pRes = await playersAPI.getAll();
+        if (pRes.data?.success) setPlayers(pRes.data.players);
+      }
+    } catch (err) {
+      showMessage(err.response?.data?.message || 'Error updating player sequence', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -287,6 +466,7 @@ export default function AdminPanel({ onLogout }) {
     try {
       const payload = {
         ...playerForm,
+        orderInRound: Number(playerForm.orderInRound) || 1,
         stats: {
           matches: Number(playerForm.matches) || 0,
           runs: Number(playerForm.runs) || 0,
@@ -438,9 +618,25 @@ export default function AdminPanel({ onLogout }) {
 
   const currentPlayer = auctionState?.currentPlayer;
   const currentRound = auctionState?.currentRound;
-  const isPlayerSold = currentPlayer?.status === 'sold' || auctionState?.status === 'sold';
-  const isPlayerUnsold = !isPlayerSold && (currentPlayer?.status === 'unsold' || auctionState?.status === 'unsold');
-  const status = isPlayerSold ? 'sold' : (isPlayerUnsold ? 'unsold' : (auctionState?.status || 'idle'));
+
+  const isRoundCompleted = auctionState?.status === 'round_completed';
+  const isAuctionCompleted = auctionState?.status === 'completed';
+
+  const isPlayerSold = !isRoundCompleted && !isAuctionCompleted && (
+    auctionState?.status === 'sold' ||
+    (currentPlayer?.status === 'sold' && !['bidding', 'ready', 'paused', 'idle', 'round_completed', 'completed'].includes(auctionState?.status))
+  );
+
+  const isPlayerUnsold = !isRoundCompleted && !isAuctionCompleted && !isPlayerSold && (
+    auctionState?.status === 'unsold' ||
+    (currentPlayer?.status === 'unsold' && !['bidding', 'ready', 'paused', 'idle', 'round_completed', 'completed'].includes(auctionState?.status))
+  );
+
+  const status = isRoundCompleted
+    ? 'round_completed'
+    : (isAuctionCompleted
+        ? 'completed'
+        : (isPlayerSold ? 'sold' : (isPlayerUnsold ? 'unsold' : (auctionState?.status || 'idle'))));
   const highestBidder = isPlayerSold ? (currentPlayer?.soldToTeam || auctionState?.highestBidder) : auctionState?.highestBidder;
   const currentBid = isPlayerSold
     ? (currentPlayer?.soldPrice || auctionState?.currentBid || currentPlayer?.basePrice || 0)
@@ -529,11 +725,19 @@ export default function AdminPanel({ onLogout }) {
 
     try {
       const res = await auctionAPI.placeBid({ increment: incrementVal });
-      if (res.data?.currentBid) {
-        showMessage(`Bid raised by +₹${incrementVal.toLocaleString('en-IN')} → ${formatINR(res.data.currentBid)}!`, 'success');
+      const newBid = res.data?.currentBid;
+      if (newBid != null) {
+        setAuctionState((prev) => ({
+          ...prev,
+          currentBid: newBid,
+          highestBidder: res.data?.highestBidder ?? prev?.highestBidder,
+          status: 'bidding'
+        }));
+        showMessage(`Bid raised by +₹${incrementVal.toLocaleString('en-IN')} → ${formatINR(newBid)}!`, 'success');
       } else {
         showMessage(`Bid raised by +₹${incrementVal.toLocaleString('en-IN')}!`, 'success');
       }
+      fetchData(false);
     } catch (err) {
       showMessage(err.response?.data?.message || 'Failed to place incremental bid', 'error');
     }
@@ -565,8 +769,16 @@ export default function AdminPanel({ onLogout }) {
     try {
       setActionLoading(true);
       const res = await auctionAPI.placeBid({ amount: num });
+      const newBid = res.data?.currentBid || num;
+      setAuctionState((prev) => ({
+        ...prev,
+        currentBid: newBid,
+        highestBidder: res.data?.highestBidder ?? prev?.highestBidder,
+        status: 'bidding'
+      }));
       setCustomBidAmount('');
-      showMessage(`Custom bid recorded: ${formatINR(res.data?.currentBid || num)}!`, 'success');
+      showMessage(`Custom bid recorded: ${formatINR(newBid)}!`, 'success');
+      fetchData(false);
     } catch (err) {
       showMessage(err.response?.data?.message || 'Failed to place custom bid', 'error');
     } finally {
@@ -686,14 +898,24 @@ export default function AdminPanel({ onLogout }) {
   ]);
 
   // Filtered players list for players tab
-  const filteredPlayers = players.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(playerSearch.toLowerCase());
-    const matchesCat = categoryFilter === 'All' || p.category === categoryFilter;
-    const matchesStatus = statusFilter === 'All' || p.status?.toLowerCase() === statusFilter.toLowerCase();
-    const pRoundId = p.roundId?._id ? p.roundId._id.toString() : (p.roundId ? p.roundId.toString() : '');
-    const matchesSet = (selectedSetFilter === 'ALL' || !selectedSetFilter) || pRoundId === selectedSetFilter;
-    return matchesSearch && matchesCat && matchesStatus && matchesSet;
-  });
+  const filteredPlayers = players
+    .filter((p) => {
+      const matchesSearch = p.name.toLowerCase().includes(playerSearch.toLowerCase());
+      const matchesCat = categoryFilter === 'All' || p.category === categoryFilter;
+      const matchesStatus = statusFilter === 'All' || p.status?.toLowerCase() === statusFilter.toLowerCase();
+      const pRoundId = p.roundId?._id ? p.roundId._id.toString() : (p.roundId ? p.roundId.toString() : '');
+      const matchesSet = (selectedSetFilter === 'ALL' || !selectedSetFilter) || pRoundId === selectedSetFilter;
+      return matchesSearch && matchesCat && matchesStatus && matchesSet;
+    })
+    .sort((a, b) => {
+      if (selectedSetFilter !== 'ALL' && selectedSetFilter) {
+        return (a.orderInRound || 1) - (b.orderInRound || 1);
+      }
+      const rOrderA = a.roundId?.order ?? (rounds.find(r => r._id === (a.roundId?._id || a.roundId))?.order ?? 9999);
+      const rOrderB = b.roundId?.order ?? (rounds.find(r => r._id === (b.roundId?._id || b.roundId))?.order ?? 9999);
+      if (rOrderA !== rOrderB) return rOrderA - rOrderB;
+      return (a.orderInRound || 1) - (b.orderInRound || 1);
+    });
 
   // Player count for the selected set (e.g. 8 Players for Set 1, or total players for All Sets)
   const selectedSetPlayerCount = (selectedSetFilter === 'ALL' || !selectedSetFilter)
@@ -992,9 +1214,14 @@ export default function AdminPanel({ onLogout }) {
                 {activeTab === 'rounds' && 'Auction Sets & Sequences'}
                 {activeTab === 'teams' && 'Franchise Teams & Purses'}
               </h2>
-              <p className="text-[10px] sm:text-xs text-zinc-500 font-medium truncate">
-                <span className="hidden sm:inline">Real-Time Socket Synchronization Active</span>
-                <span className="sm:hidden">Live Sync Active</span>
+              <p className="text-[10px] sm:text-xs text-zinc-500 font-medium truncate flex items-center gap-1.5">
+                <span className={`inline-block w-2 h-2 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
+                <span className="hidden sm:inline">
+                  {socketConnected ? 'Real-Time Socket Synchronization Active' : 'Connecting to Live Sync...'}
+                </span>
+                <span className="sm:hidden">
+                  {socketConnected ? 'Live Sync Active' : 'Connecting...'}
+                </span>
               </p>
             </div>
           </div>
@@ -1050,6 +1277,63 @@ export default function AdminPanel({ onLogout }) {
           {activeTab === 'live' && (
             <div className="space-y-5 sm:space-y-6 max-w-7xl mx-auto">
               
+              {/* ROUND COMPLETED INTERSTITIAL BANNER */}
+              {auctionState?.status === 'round_completed' && (
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-400 rounded-2xl p-6 sm:p-7 text-center shadow-md relative overflow-hidden animate-fade-in">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-600 mb-3">
+                    <Award className="w-7 h-7" />
+                  </div>
+                  <div className="mb-2">
+                    <span className="inline-block px-3 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-widest bg-amber-500 text-black shadow-sm">
+                      Round Boundary Paused
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black uppercase text-zinc-900 tracking-tight mb-2">
+                    {currentRound ? `${currentRound.name.toUpperCase()} COMPLETED` : 'ROUND COMPLETED'}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-zinc-600 max-w-lg mx-auto mb-5 leading-relaxed">
+                    All eligible players in this set have been processed. The auction is currently held at this round boundary. Projector is displaying completion status. When ready, click below to advance to the next set.
+                  </p>
+                  <button
+                    onClick={handleAdvanceRound}
+                    disabled={actionLoading}
+                    className="px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-lg hover:shadow-emerald-600/30 transition disabled:opacity-50 cursor-pointer"
+                  >
+                    <span>Move to Next Round</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* AUCTION COMPLETED BANNER */}
+              {auctionState?.status === 'completed' && (
+                <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-400 rounded-2xl p-6 sm:p-7 text-center shadow-md relative overflow-hidden animate-fade-in">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-600 mb-3">
+                    <Award className="w-7 h-7" />
+                  </div>
+                  <div className="mb-2">
+                    <span className="inline-block px-3 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-widest bg-emerald-500 text-black shadow-sm">
+                      Tournament Auction Finished
+                    </span>
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black uppercase text-zinc-900 tracking-tight mb-2">
+                    AUCTION COMPLETED
+                  </h2>
+                  <p className="text-xs sm:text-sm text-zinc-600 max-w-lg mx-auto mb-5 leading-relaxed">
+                    All configured rounds and players have been completed! View squad standings and tournament results.
+                  </p>
+                  <a
+                    href="/results"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-6 py-2.5 rounded-xl bg-zinc-900 hover:bg-black text-white font-bold text-xs uppercase tracking-wider inline-flex items-center gap-2 transition shadow-sm"
+                  >
+                    <span>View Final Results</span>
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              )}
+
               {/* Row 1: Player Summary Card (Left) + Auctioneer Controls (Right) */}
               <div className="grid grid-cols-12 gap-5 sm:gap-6 items-start">
                 
@@ -1154,11 +1438,33 @@ export default function AdminPanel({ onLogout }) {
                           onChange={(e) => handleSelectPlayer(e.target.value)}
                           className="w-full bg-white border border-zinc-200 rounded-xl p-2 sm:p-2.5 text-xs text-zinc-900 font-medium focus:outline-none focus:border-zinc-900 transition"
                         >
-                          {players.map((p) => (
-                            <option key={p._id} value={p._id}>
-                              #{p.orderInRound} {p.name} ({p.status.toUpperCase()}) — ₹{p.basePrice}
-                            </option>
-                          ))}
+                          <optgroup label={currentRound ? `${currentRound.name} (Current Set)` : 'Current Set'}>
+                            {players
+                              .filter((p) => {
+                                const pRoundId = p.roundId?._id ? p.roundId._id.toString() : (p.roundId ? p.roundId.toString() : '');
+                                const cRoundId = currentRound?._id ? currentRound._id.toString() : (currentRound ? currentRound.toString() : '');
+                                return pRoundId === cRoundId;
+                              })
+                              .sort((a, b) => (a.orderInRound || 1) - (b.orderInRound || 1))
+                              .map((p) => (
+                                <option key={p._id} value={p._id}>
+                                  #{p.orderInRound || 1} {p.name} ({p.status.toUpperCase()}) — ₹{p.basePrice}
+                                </option>
+                              ))}
+                          </optgroup>
+                          <optgroup label="Other Sets">
+                            {players
+                              .filter((p) => {
+                                const pRoundId = p.roundId?._id ? p.roundId._id.toString() : (p.roundId ? p.roundId.toString() : '');
+                                const cRoundId = currentRound?._id ? currentRound._id.toString() : (currentRound ? currentRound.toString() : '');
+                                return pRoundId !== cRoundId;
+                              })
+                              .map((p) => (
+                                <option key={p._id} value={p._id}>
+                                  [{p.roundId?.name || 'Unassigned'}] #{p.orderInRound || 1} {p.name} ({p.status.toUpperCase()})
+                                </option>
+                              ))}
+                          </optgroup>
                         </select>
                       </div>
                     </div>
@@ -1170,7 +1476,16 @@ export default function AdminPanel({ onLogout }) {
                   
                   {/* 1. SESSION CONTROLS: START / PAUSE / NEXT */}
                   <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3">
-                    {status === 'bidding' ? (
+                    {auctionState?.status === 'round_completed' ? (
+                      <button
+                        onClick={handleAdvanceRound}
+                        disabled={actionLoading}
+                        className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-sm cursor-pointer"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                        <span>Move to Next Round</span>
+                      </button>
+                    ) : status === 'bidding' ? (
                       <button
                         onClick={handleTogglePause}
                         disabled={actionLoading}
@@ -1438,10 +1753,13 @@ export default function AdminPanel({ onLogout }) {
                   <button
                     onClick={() => {
                       setEditingPlayer(null);
+                      const initialRoundId = (selectedSetFilter !== 'ALL' && selectedSetFilter) ? selectedSetFilter : (rounds[0]?._id || '');
+                      const defaultSeq = getNextSequenceForRound(initialRoundId);
                       setPlayerForm({
                         name: '', category: 'All-rounder', battingStyle: 'Right Hand Bat',
                         bowlingStyle: 'Right Arm Medium', basePrice: 200, photo: '',
-                        description: '', roundId: (selectedSetFilter !== 'ALL' && selectedSetFilter) ? selectedSetFilter : (rounds[0]?._id || ''), matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0
+                        description: '', roundId: initialRoundId, orderInRound: defaultSeq,
+                        matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0
                       });
                       setShowPlayerModal(true);
                     }}
@@ -1537,9 +1855,10 @@ export default function AdminPanel({ onLogout }) {
 
               {/* Players Table */}
               <div className="bg-white border border-[#e4e4e7] rounded-lg overflow-x-auto shadow-sm">
-                <table className="w-full min-w-[700px] text-left text-xs">
+                <table className="w-full min-w-[760px] text-left text-xs">
                   <thead className="bg-[#f4f4f5] text-[#64748B] font-bold uppercase text-[10px]">
                     <tr>
+                      <th className="p-3.5 whitespace-nowrap">Seq / Order</th>
                       <th className="p-3.5">Player</th>
                       <th className="p-3.5">Category</th>
                       <th className="p-3.5">Set</th>
@@ -1552,6 +1871,52 @@ export default function AdminPanel({ onLogout }) {
                   <tbody className="divide-y divide-[#f4f4f5]">
                     {filteredPlayers.map((p) => (
                       <tr key={p._id} className="hover:bg-[#F9FAFB]">
+                        <td className="p-3.5 whitespace-nowrap">
+                          <div className="flex items-center gap-1">
+                            <span className="w-6 text-center font-black text-xs text-zinc-700 bg-zinc-100 rounded py-0.5 border border-zinc-200">
+                              {p.orderInRound || 1}
+                            </span>
+                            <div className="flex flex-col">
+                              <button
+                                type="button"
+                                onClick={() => handleMovePlayer(p._id, 'up')}
+                                disabled={actionLoading}
+                                title="Move Up in Sequence"
+                                className="p-0.5 hover:bg-zinc-200 text-zinc-600 hover:text-black rounded transition disabled:opacity-30 cursor-pointer"
+                              >
+                                <ArrowUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMovePlayer(p._id, 'down')}
+                                disabled={actionLoading}
+                                title="Move Down in Sequence"
+                                className="p-0.5 hover:bg-zinc-200 text-zinc-600 hover:text-black rounded transition disabled:opacity-30 cursor-pointer"
+                              >
+                                <ArrowDown className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              min="1"
+                              defaultValue={p.orderInRound || 1}
+                              key={`${p._id}-${p.orderInRound}`}
+                              onBlur={(e) => {
+                                const val = parseInt(e.target.value, 10);
+                                if (val && val !== p.orderInRound) {
+                                  handleUpdatePlayerSequence(p._id, val);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.target.blur();
+                                }
+                              }}
+                              title="Edit sequence number directly (Press Enter or click away to save)"
+                              className="w-12 text-center text-xs font-bold border border-zinc-300 rounded px-1 py-0.5 focus:outline-none focus:border-zinc-900 bg-white"
+                            />
+                          </div>
+                        </td>
                         <td className="p-3.5 font-bold text-[#181818] flex items-center gap-3">
                           <img
                             src={resolveImageUrl(p.photo) || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=100&auto=format&fit=crop&q=80'}
@@ -1625,6 +1990,7 @@ export default function AdminPanel({ onLogout }) {
                                 photo: p.photo,
                                 description: p.description,
                                 roundId: p.roundId?._id || (typeof p.roundId === 'string' ? p.roundId : ''),
+                                orderInRound: p.orderInRound || 1,
                                 matches: p.stats?.matches || 0,
                                 runs: p.stats?.runs || 0,
                                 wickets: p.stats?.wickets || 0,
@@ -1942,18 +2308,44 @@ export default function AdminPanel({ onLogout }) {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[#181818] font-bold uppercase mb-1">Assigned Set</label>
-                <select
-                  value={playerForm.roundId}
-                  onChange={(e) => setPlayerForm({ ...playerForm, roundId: e.target.value })}
-                  className="w-full bg-[#f4f4f5] border border-[#e4e4e7] rounded p-2.5 text-[#181818]"
-                >
-                  <option value="">-- Unassigned --</option>
-                  {rounds.map((r) => (
-                    <option key={r._id} value={r._id}>{r.name}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[#181818] font-bold uppercase mb-1">Assigned Set / Round</label>
+                  <select
+                    value={playerForm.roundId}
+                    onChange={(e) => {
+                      const newRoundId = e.target.value;
+                      const nextSeq = getNextSequenceForRound(newRoundId, editingPlayer?._id);
+                      setPlayerForm({
+                        ...playerForm,
+                        roundId: newRoundId,
+                        orderInRound: nextSeq
+                      });
+                    }}
+                    className="w-full bg-[#f4f4f5] border border-[#e4e4e7] rounded p-2.5 text-[#181818]"
+                  >
+                    <option value="">-- Unassigned --</option>
+                    {rounds.map((r) => (
+                      <option key={r._id} value={r._id}>{r.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[#181818] font-bold uppercase mb-1">Sequence # in Set</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={playerForm.orderInRound || 1}
+                    onChange={(e) => setPlayerForm({ ...playerForm, orderInRound: e.target.value })}
+                    className="w-full bg-[#f4f4f5] border border-[#e4e4e7] rounded p-2.5 text-[#181818]"
+                    placeholder="e.g. 1, 2, 3..."
+                  />
+                  <span className="text-[10px] text-zinc-500 block mt-0.5">
+                    Scoped to this set (1, 2, 3...)
+                  </span>
+                </div>
               </div>
 
               {/* Photo Upload / URL */}

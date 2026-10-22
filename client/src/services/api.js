@@ -47,6 +47,7 @@ export const auctionAPI = {
   togglePause: () => api.post('/auction/pause'),
   nextPlayer: () => api.post('/auction/next-player'),
   prevPlayer: () => api.post('/auction/prev-player'),
+  advanceRound: () => api.post('/auction/advance-round'),
   undoSale: (playerId) => api.post('/auction/undo-sale', { playerId }),
   setIncrement: (increment) => api.post('/auction/set-increment', { increment })
 };
@@ -65,6 +66,7 @@ export const playersAPI = {
   create: (data) => api.post('/players', data),
   update: (id, data) => api.put(`/players/${id}`, data),
   delete: (id) => api.delete(`/players/${id}`),
+  reorder: (data) => api.post('/players/reorder', data),
   reauction: (id) => api.post(`/players/${id}/re-auction`),
   bulkImport: (players) => api.post('/players/bulk-import', { players })
 };
