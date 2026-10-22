@@ -106,6 +106,72 @@
   animation: countdownPop 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* 3D Coin Flip Animation for Team Reveal */
+@keyframes coinFlip3D {
+  0% {
+    transform: perspective(1400px) rotateY(0deg) scale(0.65);
+    opacity: 0;
+  }
+  15% {
+    transform: perspective(1400px) rotateY(540deg) scale(1.15);
+    opacity: 1;
+  }
+  40% {
+    transform: perspective(1400px) rotateY(1080deg) scale(1.08);
+  }
+  65% {
+    transform: perspective(1400px) rotateY(1440deg) scale(1.04);
+  }
+  85% {
+    transform: perspective(1400px) rotateY(1710deg) scale(0.98);
+  }
+  100% {
+    transform: perspective(1400px) rotateY(1800deg) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-coin-flip {
+  animation: coinFlip3D 4.5s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+  transform-style: preserve-3d;
+}
+
+/* Smooth Slide-In From Left for Player & Captain Cards */
+@keyframes slideInLeftReveal {
+  0% {
+    transform: translateX(-110%) scale(0.95);
+    opacity: 0;
+  }
+  70% {
+    transform: translateX(1.5%) scale(1.01);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-left {
+  animation: slideInLeftReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Smooth Dramatic Fade & Scale In */
+@keyframes dramaticEntrance {
+  0% {
+    transform: scale(0.88);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-dramatic-entrance {
+  animation: dramaticEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
@@ -115,3 +181,4 @@
     scroll-behavior: auto !important;
   }
 }
+

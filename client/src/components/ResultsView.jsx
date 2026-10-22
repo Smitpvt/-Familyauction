@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Download, Users, ArrowLeft, ExternalLink } from 'lucide-react';
+import { Trophy, Download, Users, ArrowLeft, ExternalLink, Play } from 'lucide-react';
 import { resultsAPI } from '../services/api';
 import hfplLogo from '../logo/HFPL logo-Photoroom.png';
 import { resolveTeamLogo } from '../utils/media';
@@ -132,7 +132,8 @@ export default function ResultsView() {
               const teamData = teamItem.team || teamItem;
               const tName = teamData.name || teamItem.name || '';
               const tCode = teamData.code || teamItem.code || '';
-              const tCaptain = teamData.captain || teamItem.captain || '';
+              const rawCap = teamData.captain || teamItem.captain || '';
+              const tCaptain = /sheslekar/i.test(rawCap) ? 'Shrirang Sherlekar' : rawCap;
               const tPurse = teamData.remainingPurse ?? teamItem.remainingPurse ?? 10000;
               const tSpent = teamData.totalSpent ?? teamItem.totalSpent ?? 0;
               const tColor = teamData.color || teamItem.color;
@@ -166,8 +167,23 @@ export default function ResultsView() {
                             {tCode}
                           </div>
                         )}
-                        <div className="min-w-0 truncate">
-                          <h3 className="text-base sm:text-lg font-bold text-white leading-snug truncate">{tName} ({tCode})</h3>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-base sm:text-lg font-bold text-white leading-snug truncate">{tName} ({tCode})</h3>
+                            <a
+                              href={`/reveal/${teamData._id || teamItem._id}`}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                window.history.pushState({}, '', `/reveal/${teamData._id || teamItem._id}`);
+                                window.dispatchEvent(new PopStateEvent('popstate'));
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 hover:text-amber-200 text-[11px] font-semibold tracking-wide transition shadow-sm hover:scale-105 active:scale-95 shrink-0"
+                              title={`Watch cinematic reveal for ${tName}`}
+                            >
+                              <Play className="w-2.5 h-2.5 fill-current" />
+                              <span>Reveal Team</span>
+                            </a>
+                          </div>
                           <p className="text-xs text-zinc-400 truncate">Captain: <span className="text-white font-medium">{tCaptain || 'Not set'}</span></p>
                         </div>
                       </div>

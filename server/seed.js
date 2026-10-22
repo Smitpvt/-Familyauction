@@ -76,7 +76,7 @@ const seedData = async () => {
       {
         name: 'Sherle Sunrisers',
         code: 'SS',
-        captain: 'Shrirang Sheslekar',
+        captain: 'Shrirang Sherlekar',
         color: '#f97316',
         secondaryColor: '#1e3a8a',
         startingPurse: 10000,

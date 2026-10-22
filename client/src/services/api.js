@@ -48,6 +48,7 @@ export const auctionAPI = {
   nextPlayer: () => api.post('/auction/next-player'),
   prevPlayer: () => api.post('/auction/prev-player'),
   advanceRound: () => api.post('/auction/advance-round'),
+  endRound: () => api.post('/auction/end-round'),
   undoSale: (playerId) => api.post('/auction/undo-sale', { playerId }),
   setIncrement: (increment) => api.post('/auction/set-increment', { increment })
 };

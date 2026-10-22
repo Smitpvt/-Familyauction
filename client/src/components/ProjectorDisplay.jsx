@@ -204,12 +204,14 @@ export default function ProjectorDisplay() {
 
           // If the player is already sold in persisted state, record their ID
           // so reconnection or socket refresh never plays confetti/sound for an already-sold player
-          if ((bState?.status === 'sold' || bState?.currentPlayer?.status === 'sold') && bState?.currentPlayer?._id) {
-            lastCelebratedPlayerIdRef.current = String(bState.currentPlayer._id);
-            setIsFlipped(true);
-          }
-          if ((bState?.status === 'unsold' || bState?.currentPlayer?.status === 'unsold') && bState?.currentPlayer?._id) {
-            lastUnsoldPlayerIdRef.current = String(bState.currentPlayer._id);
+          if (!['round_completed', 'completed'].includes(bState?.status)) {
+            if ((bState?.status === 'sold' || bState?.currentPlayer?.status === 'sold') && bState?.currentPlayer?._id) {
+              lastCelebratedPlayerIdRef.current = String(bState.currentPlayer._id);
+              setIsFlipped(true);
+            }
+            if ((bState?.status === 'unsold' || bState?.currentPlayer?.status === 'unsold') && bState?.currentPlayer?._id) {
+              lastUnsoldPlayerIdRef.current = String(bState.currentPlayer._id);
+            }
           }
         }
       }
@@ -357,6 +359,9 @@ export default function ProjectorDisplay() {
     };
 
     const handleRoundCompleted = (payload) => {
+      setIsFlipped(false);
+      setShowGreenSweep(false);
+      setSoldResultPayload(null);
       if (payload?.round) {
         setAuctionData((prev) => {
           if (!prev) return prev;
@@ -366,6 +371,17 @@ export default function ProjectorDisplay() {
               ...prev.state,
               status: 'round_completed',
               currentRound: payload.round
+            }
+          };
+        });
+      } else {
+        setAuctionData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            state: {
+              ...prev.state,
+              status: 'round_completed'
             }
           };
         });
@@ -756,7 +772,7 @@ export default function ProjectorDisplay() {
         {/* ============================================================== */}
         {/* VIEW A: REDESIGNED START / WELCOME SCREEN                      */}
         {/* ============================================================== */}
-        {currentView === 'welcome' && (
+        {currentView === 'welcome' && !isRoundCompleted && !isAuctionCompleted && (
           <div className="w-full max-w-3xl flex flex-col items-center text-center animate-fade-in my-auto relative z-10 py-4">
             {/* Subtle stadium-inspired pitch perimeter rings */}
             <div className="absolute -top-16 -bottom-16 -left-16 -right-16 rounded-full border border-[#d4af37]/5 pointer-events-none -z-10" />
@@ -851,7 +867,7 @@ export default function ProjectorDisplay() {
         {/* ============================================================== */}
         {/* VIEW C: AUCTION RULES SCREEN (2 Pages, 5 Rules Each)            */}
         {/* ============================================================== */}
-        {currentView === 'rules' && (
+        {currentView === 'rules' && !isRoundCompleted && !isAuctionCompleted && (
           <div className="w-full max-w-5xl flex flex-col justify-between animate-fade-in my-auto h-full max-h-[85vh] py-2">
             {/* Rules Top Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-zinc-800/80 shrink-0">
@@ -991,7 +1007,7 @@ export default function ProjectorDisplay() {
         )}
 
         {/* VIEW B: SET SELECTION SCREEN */}
-        {currentView === 'sets' && (
+        {currentView === 'sets' && !isRoundCompleted && !isAuctionCompleted && (
           <div className="w-full max-w-3xl flex flex-col items-center text-center animate-fade-in my-auto">
             <div className="flex items-center justify-between w-full mb-8">
               <button
@@ -1052,7 +1068,7 @@ export default function ProjectorDisplay() {
         )}
 
         {/* VIEW C: PROJECTOR PLAYER AUCTION SCREEN */}
-        {currentView === 'auction' && (
+        {(currentView === 'auction' || isRoundCompleted || isAuctionCompleted) && (
           status === 'round_completed' ? (
             /* Explicit Round Completed Screen (16:9 Projector Optimized) */
             <div className="w-full max-w-4xl text-center p-8 sm:p-14 md:p-16 rounded-3xl bg-gradient-to-b from-zinc-900/95 via-zinc-950/98 to-black border-2 border-amber-500/50 shadow-[0_0_80px_rgba(245,158,11,0.25)] animate-fade-in my-auto relative overflow-hidden backdrop-blur-xl">
@@ -1071,21 +1087,22 @@ export default function ProjectorDisplay() {
               <div className="mb-4">
                 <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-black tracking-widest uppercase shadow-sm">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-                  <span>SET COMPLETED • AUCTION PAUSED</span>
+                  <span>ROUND ENDED • AUCTION PAUSED</span>
                 </div>
               </div>
 
               {/* Dynamic Round Name Headline */}
-              <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight text-white mb-4 leading-tight drop-shadow-lg">
+              <h1 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase tracking-tight text-white mb-2 leading-tight drop-shadow-lg">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-[#d4af37] to-amber-100">
-                  {currentRound?.name ? currentRound.name.toUpperCase() : 'ROUND'}
-                </span>{' '}
-                COMPLETED
+                  {currentRound?.name
+                    ? `${currentRound.name.toUpperCase().replace(/\s*COMPLETED\s*$/i, '')} COMPLETED`
+                    : `ROUND ${currentRound?.order || 1} COMPLETED`}
+                </span>
               </h1>
 
               {/* Informative Subtext */}
               <p className="text-sm sm:text-lg md:text-xl text-zinc-300 font-medium max-w-2xl mx-auto leading-relaxed mb-8">
-                All eligible players in this round/set have been auctioned. The auction is held at this round boundary.
+                This round has ended. 
               </p>
 
               {/* Tournament Summary Metrics */}
@@ -1119,7 +1136,7 @@ export default function ProjectorDisplay() {
               {/* Waiting Indicator */}
               <div className="inline-flex items-center gap-2 text-xs sm:text-sm text-zinc-400 font-semibold tracking-wide">
                 <span className="w-2 h-2 rounded-full bg-zinc-500 animate-pulse" />
-                <span>Waiting for auctioneer to start the next round...</span>
+                <span>Waiting for Admin to Start the Next Marquee</span>
               </div>
             </div>
           ) : status === 'completed' ? (
@@ -1479,7 +1496,7 @@ export default function ProjectorDisplay() {
 
                                 {winningTeam?.captain && (
                                   <p className="text-xs sm:text-sm text-zinc-300 font-medium">
-                                    Captain: <span className="text-white font-bold">{winningTeam.captain}</span>
+                                    Captain: <span className="text-white font-bold">{/sheslekar/i.test(winningTeam.captain) ? 'Shrirang Sherlekar' : winningTeam.captain}</span>
                                   </p>
                                 )}
 

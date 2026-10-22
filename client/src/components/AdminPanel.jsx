@@ -347,6 +347,21 @@ export default function AdminPanel({ onLogout }) {
     }
   };
 
+  const handleEndRound = async () => {
+    const roundTitle = currentRound?.name || `Round ${currentRound?.order || 1}`;
+    if (!window.confirm(`End ${roundTitle} now? This will pause bidding and show the Round Ended screen on the projector.`)) return;
+    try {
+      setActionLoading(true);
+      const res = await auctionAPI.endRound();
+      showMessage(res.data?.message || `${roundTitle} ended! Projector is now showing Round Ended.`, 'info');
+      fetchData(false);
+    } catch (err) {
+      showMessage(err.response?.data?.message || 'Error ending round', 'error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleMovePlayer = async (playerId, direction) => {
     try {
       setActionLoading(true);
@@ -618,6 +633,12 @@ export default function AdminPanel({ onLogout }) {
 
   const currentPlayer = auctionState?.currentPlayer;
   const currentRound = auctionState?.currentRound;
+
+  const currentRoundOrder = currentRound?.order || 1;
+  const nextRound = rounds
+    .filter((r) => r.order > currentRoundOrder)
+    .sort((a, b) => a.order - b.order)[0];
+  const nextRoundLabel = nextRound ? `${nextRound.name} – Next Round` : 'Marquee 2 – Next Round';
 
   const isRoundCompleted = auctionState?.status === 'round_completed';
   const isAuctionCompleted = auctionState?.status === 'completed';
@@ -1288,18 +1309,25 @@ export default function AdminPanel({ onLogout }) {
                       Round Boundary Paused
                     </span>
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-black uppercase text-zinc-900 tracking-tight mb-2">
-                    {currentRound ? `${currentRound.name.toUpperCase()} COMPLETED` : 'ROUND COMPLETED'}
+                  <h2 className="text-2xl sm:text-3xl font-black uppercase text-zinc-900 tracking-tight mb-1">
+                    {currentRound?.name
+                      ? `${currentRound.name.toUpperCase().replace(/\s*COMPLETED\s*$/i, '')} COMPLETED`
+                      : `ROUND ${currentRound?.order || 1} COMPLETED`}
                   </h2>
+                  {currentRound?.name && (
+                    <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-2">
+                      {currentRound.name}
+                    </p>
+                  )}
                   <p className="text-xs sm:text-sm text-zinc-600 max-w-lg mx-auto mb-5 leading-relaxed">
-                    All eligible players in this set have been processed. The auction is currently held at this round boundary. Projector is displaying completion status. When ready, click below to advance to the next set.
+                    This round has ended. The projector is displaying the full-screen Round Ended screen. When ready, click below to load the next round.
                   </p>
                   <button
                     onClick={handleAdvanceRound}
                     disabled={actionLoading}
                     className="px-7 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-lg hover:shadow-emerald-600/30 transition disabled:opacity-50 cursor-pointer"
                   >
-                    <span>Move to Next Round</span>
+                    <span>{nextRoundLabel}</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -1483,7 +1511,7 @@ export default function AdminPanel({ onLogout }) {
                         className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-sm cursor-pointer"
                       >
                         <ChevronRight className="w-4 h-4" />
-                        <span>Move to Next Round</span>
+                        <span>{nextRoundLabel}</span>
                       </button>
                     ) : status === 'bidding' ? (
                       <button
@@ -1516,12 +1544,25 @@ export default function AdminPanel({ onLogout }) {
 
                     <button
                       onClick={handleNextPlayer}
-                      disabled={actionLoading}
+                      disabled={actionLoading || auctionState?.status === 'round_completed'}
                       className="w-full sm:w-auto py-3 px-5 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-900 font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition disabled:opacity-40"
                     >
                       <span>Next Player</span>
                       <ChevronRight className="w-4 h-4" />
                     </button>
+
+                    {auctionState?.status !== 'round_completed' && auctionState?.status !== 'completed' && (
+                      <button
+                        type="button"
+                        onClick={handleEndRound}
+                        disabled={actionLoading}
+                        className="w-full sm:w-auto py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition disabled:opacity-40 shadow-sm cursor-pointer"
+                        title="End current round and show Round Ended screen on projector"
+                      >
+                        <Award className="w-4 h-4 text-zinc-950" />
+                        <span>End Round</span>
+                      </button>
+                    )}
                   </div>
 
                   {/* 2. DIRECT INCREMENT BID CONTROLS (1-CLICK & KEYBOARD SHORTCUTS 1-9, 0) */}

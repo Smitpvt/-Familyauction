@@ -18,6 +18,7 @@ router.post('/next-player', authMiddleware, auctionController.nextPlayer);
 router.post('/prev-player', authMiddleware, auctionController.prevPlayer);
 router.post('/undo-sale', authMiddleware, auctionController.undoSale);
 router.post('/advance-round', authMiddleware, auctionController.advanceRound);
+router.post('/end-round', authMiddleware, auctionController.endRound);
 router.post('/set-increment', authMiddleware, auctionController.setBidIncrement);
 
 module.exports = router;

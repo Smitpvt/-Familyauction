@@ -3,6 +3,7 @@ import ProjectorDisplay from './components/ProjectorDisplay';
 import AdminPanel from './components/AdminPanel';
 import AdminLogin from './components/AdminLogin';
 import ResultsView from './components/ResultsView';
+import TeamReveal from './components/TeamReveal';
 import { Tv, Shield, ArrowRight, Trophy } from 'lucide-react';
 import { authAPI } from './services/api';
 import hfplLogo from './logo/HFPL logo-Photoroom.png';
@@ -63,7 +64,17 @@ export default function App() {
     return <ResultsView />;
   }
 
-  // Route 3: Admin Console
+  // Route 3: Cinematic Team Reveal
+  if (currentPath.startsWith('/reveal')) {
+    const pathParts = currentPath.split('/');
+    const teamIdFromPath = pathParts[2] && pathParts[2].trim() !== '' ? pathParts[2].trim() : null;
+    const searchParams = new URLSearchParams(window.location.search);
+    const teamId = teamIdFromPath || searchParams.get('teamId');
+
+    return <TeamReveal teamId={teamId} onBack={() => navigateTo('/results')} />;
+  }
+
+  // Route 4: Admin Console
   if (currentPath === '/admin') {
     if (authChecking) {
       return (

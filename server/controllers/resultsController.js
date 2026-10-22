@@ -21,13 +21,14 @@ exports.getAuctionSummary = async (req, res) => {
       const players = soldPlayers.filter(
         (p) => p.soldToTeam && String(p.soldToTeam._id) === String(team._id)
       );
+      const captainName = /sheslekar/i.test(team.captain) ? 'Shrirang Sherlekar' : team.captain;
       return {
         _id: team._id,
         name: team.name,
         code: team.code,
         logo: team.logo,
         color: team.color,
-        captain: team.captain,
+        captain: captainName,
         startingPurse: team.startingPurse,
         totalSpent: team.totalSpent,
         remainingPurse: team.remainingPurse,
@@ -37,7 +38,7 @@ exports.getAuctionSummary = async (req, res) => {
           code: team.code,
           logo: team.logo,
           color: team.color,
-          captain: team.captain,
+          captain: captainName,
           startingPurse: team.startingPurse,
           totalSpent: team.totalSpent,
           remainingPurse: team.remainingPurse

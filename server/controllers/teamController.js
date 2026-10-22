@@ -32,8 +32,12 @@ exports.getAllTeams = async (req, res) => {
     const teamsWithSquads = await Promise.all(
       teams.map(async (team) => {
         const squad = await Player.find({ soldToTeam: team._id, status: 'sold' }).sort({ soldPrice: -1 });
+        const obj = team.toObject();
+        if (/sheslekar/i.test(obj.captain)) {
+          obj.captain = 'Shrirang Sherlekar';
+        }
         return {
-          ...team.toObject(),
+          ...obj,
           squad,
           squadCount: squad.length
         };
@@ -49,8 +53,12 @@ exports.getTeamById = async (req, res) => {
   try {
     const team = await Team.findById(req.params.id);
     if (!team) return res.status(404).json({ success: false, message: 'Team not found' });
-    const squad = await Player.find({ soldToTeam: team._id, status: 'sold' }).sort({ soldPrice: -1 });
-    res.json({ success: true, team: { ...team.toObject(), squad } });
+    const squad = await Player.find({ soldToTeam: team._id, status: 'sold' }).sort({ soldAt: 1, createdAt: 1, _id: 1 });
+    const teamObj = team.toObject();
+    if (/sheslekar/i.test(teamObj.captain)) {
+      teamObj.captain = 'Shrirang Sherlekar';
+    }
+    res.json({ success: true, team: { ...teamObj, squad } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -54,8 +54,9 @@ const getFullPopulatedState = async () => {
 
   // Authoritative State Reconciliation with MongoDB Player & Transaction collections:
   // If the active currentPlayer is persisted as SOLD or UNSOLD in MongoDB,
-  // ensure AuctionState matches the persisted Player & Transaction records.
-  if (populatedState && populatedState.currentPlayer) {
+  // ensure AuctionState matches the persisted Player & Transaction records,
+  // EXCEPT when the auction is at an explicit boundary (round_completed or completed).
+  if (populatedState && populatedState.currentPlayer && state.status !== 'round_completed' && state.status !== 'completed') {
     const cp = populatedState.currentPlayer;
     let stateChanged = false;
 
@@ -263,6 +264,9 @@ exports.setPlayer = async (req, res) => {
 exports.startBidding = async (req, res) => {
   try {
     const state = await getOrCreateAuctionState();
+    if (state.status === 'round_completed') {
+      return res.status(400).json({ success: false, message: 'Round has ended. Please move to the next round before starting bidding.' });
+    }
     if (!state.currentPlayer) {
       return res.status(400).json({ success: false, message: 'No player selected for auction.' });
     }
@@ -466,7 +470,6 @@ exports.placeBid = (req, res) => {
 // POST /api/auction/sell
 exports.sellPlayer = async (req, res) => {
   try {
-    const { teamId } = req.body;
     const state = await getOrCreateAuctionState();
     if (!state.currentPlayer) {
       return res.status(400).json({ success: false, message: 'No active player to sell.' });
@@ -479,17 +482,33 @@ exports.sellPlayer = async (req, res) => {
       return res.status(400).json({ success: false, message: `Player ${player.name} has already been sold!` });
     }
 
-    // Winning team selection happens at SOLD (either from req.body.teamId or state.highestBidder)
-    const winningTeamId = teamId || state.highestBidder;
-    if (!winningTeamId) {
+    const selectedTeamId = req.body?.teamId || req.body?.team || req.body?.winningTeamId;
+    let team = null;
+
+    if (selectedTeamId) {
+      // Authoritative manual selection from SOLD dialog: do not fall back to stale highestBidder
+      team = await Team.findById(selectedTeamId);
+      if (!team) {
+        return res.status(400).json({
+          success: false,
+          message: 'Selected winning team not found.'
+        });
+      }
+    } else if (state.highestBidder) {
+      // Fallback only when no explicit team ID was provided
+      team = await Team.findById(state.highestBidder);
+      if (!team) {
+        return res.status(400).json({
+          success: false,
+          message: 'Winning team from highest bidder not found.'
+        });
+      }
+    } else {
       return res.status(400).json({
         success: false,
         message: 'Please choose which team wins the player before finalizing sale.'
       });
     }
-
-    const team = await Team.findById(winningTeamId);
-    if (!team) return res.status(400).json({ success: false, message: 'Winning team not found.' });
 
     const finalPrice = state.currentBid || player.basePrice;
 
@@ -638,9 +657,11 @@ exports.nextPlayer = async (req, res) => {
       }
 
       if (nextRound) {
-        // Pause at round boundary until admin explicitly clicks "Move to Next Round"
+        const roundTitle = currentRound?.name
+          ? `${currentRound.name.toUpperCase().replace(/\s*COMPLETED\s*$/i, '')} COMPLETED`
+          : `ROUND ${currentRound?.order || 1} COMPLETED`;
         state.status = 'round_completed';
-        state.announcement = `${currentRound ? currentRound.name.toUpperCase() : 'ROUND'} COMPLETED`;
+        state.announcement = roundTitle;
         await state.save();
 
         emitEvent('ROUND_COMPLETED', {
@@ -649,7 +670,7 @@ exports.nextPlayer = async (req, res) => {
         });
 
         await broadcastStateUpdate({
-          announcement: `${currentRound ? currentRound.name.toUpperCase() : 'ROUND'} COMPLETED`
+          announcement: roundTitle
         });
         const fullState = await getFullPopulatedState();
         return res.json({
@@ -836,6 +857,75 @@ exports.setBidIncrement = async (req, res) => {
     await broadcastStateUpdate();
     res.json({ success: true, state });
   } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/auction/end-round
+exports.endRound = async (req, res) => {
+  try {
+    const state = await getOrCreateAuctionState();
+    let currentRound = null;
+    if (state.currentRound) {
+      currentRound = await Round.findById(state.currentRound);
+    }
+    if (!currentRound && state.currentPlayer) {
+      const cp = await Player.findById(state.currentPlayer);
+      if (cp?.roundId) currentRound = await Round.findById(cp.roundId);
+    }
+    if (!currentRound) {
+      currentRound = await Round.findOne().sort({ order: 1 });
+    }
+    if (!currentRound) {
+      return res.status(400).json({ success: false, message: 'No round found to end.' });
+    }
+
+    state.currentRound = currentRound._id;
+    const nextRound = await Round.findOne({ order: { $gt: currentRound.order } }).sort({ order: 1 });
+
+    if (nextRound) {
+      const roundTitle = currentRound?.name
+        ? `${currentRound.name.toUpperCase().replace(/\s*COMPLETED\s*$/i, '')} COMPLETED`
+        : `ROUND ${currentRound?.order || 1} COMPLETED`;
+      state.status = 'round_completed';
+      state.announcement = roundTitle;
+      await state.save();
+
+      emitEvent('ROUND_COMPLETED', {
+        round: currentRound,
+        nextRound
+      });
+
+      await broadcastStateUpdate({
+        announcement: roundTitle
+      });
+
+      const fullState = await getFullPopulatedState();
+      return res.json({
+        success: true,
+        roundCompleted: true,
+        currentRound,
+        nextRound,
+        message: `Round ${currentRound.order || 1} ended! Bidding is paused until moving to next round.`,
+        ...fullState
+      });
+    } else {
+      state.status = 'completed';
+      state.announcement = 'AUCTION COMPLETED';
+      await state.save();
+
+      emitEvent('AUCTION_COMPLETED', {});
+      await broadcastStateUpdate({ announcement: 'AUCTION COMPLETED' });
+      const fullState = await getFullPopulatedState();
+      return res.json({
+        success: true,
+        completed: true,
+        message: 'All configured rounds have ended! AUCTION COMPLETED.',
+        ...fullState
+      });
+    }
+  } catch (error) {
+    console.error('Error ending round:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
