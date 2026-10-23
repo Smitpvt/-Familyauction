@@ -21,113 +21,74 @@ import { teamsAPI, resultsAPI } from '../services/api';
 import { resolveTeamLogo, resolveImageUrl } from '../utils/media';
 import hfplLogo from '../logo/HFPL logo-Photoroom.png';
 
-// Team-specific poster theme palettes based on actual team identities & logos
+// Clean art-directed franchise poster themes (solid colors, 2-3 hues, geometric composition)
 const getTeamPosterTheme = (team) => {
   const code = (team?.code || '').toUpperCase();
   const name = (team?.name || '').toLowerCase();
 
-  // Kotawade Knight Riders (Royal Purple & Championship Gold)
+  // 1. Kotawade Knight Riders (Royal Deep Purple & Championship Gold)
   if (code === 'KKR' || name.includes('knight') || name.includes('kotawade')) {
     return {
-      bgGradient: 'from-[#170829] via-[#2c0e52] to-[#0d0317]',
-      primary: '#9333ea',
-      secondary: '#f59e0b',
-      accentColor: '#f59e0b',
-      glow: 'rgba(147, 51, 234, 0.45)',
-      cardBg: 'bg-[#180a29]/80',
-      badgeBorder: 'border-amber-400/60',
-      badgeBg: 'bg-purple-950/90',
-      numColor: 'text-amber-400',
-      shieldGlow: 'shadow-[0_0_70px_rgba(245,158,11,0.35)]',
-      captainBorder: 'border-amber-400/80',
-      captainBg: 'bg-gradient-to-r from-purple-950/95 via-[#2d114d]/90 to-purple-950/95',
-      tagColor: 'text-amber-300',
-      outerBorder: 'border-purple-500/50',
-      stripeColor: 'rgba(245, 158, 11, 0.08)'
+      bgDark: '#23043b', // Deep royal purple
+      accent: '#f3ba2f', // Championship gold
+      accentDark: '#c79218', // Layered geometric shadow accent
+      textOnAccent: '#23043b', // Deep purple text on gold
+      jerseyBoxBg: '#340854', // Dark purple pill
+      tagline1: 'PLAY BOLD',
+      tagline2: 'RIDE TOGETHER'
     };
   }
 
-  // Ratnagiri Royals (Electric Regal Blue & Royal Pink/Magenta)
+  // 2. Ratnagiri Royals (Regal Navy & Vivid Royal Pink)
   if (code === 'RR' || name.includes('royal') || name.includes('ratnagiri')) {
     return {
-      bgGradient: 'from-[#06142e] via-[#0d2d70] to-[#030917]',
-      primary: '#2563eb',
-      secondary: '#db2777',
-      accentColor: '#f43f5e',
-      glow: 'rgba(37, 99, 235, 0.45)',
-      cardBg: 'bg-[#091b3d]/80',
-      badgeBorder: 'border-pink-500/60',
-      badgeBg: 'bg-blue-950/90',
-      numColor: 'text-pink-400',
-      shieldGlow: 'shadow-[0_0_70px_rgba(219,39,119,0.35)]',
-      captainBorder: 'border-pink-500/80',
-      captainBg: 'bg-gradient-to-r from-blue-950/95 via-[#0d2a6b]/90 to-blue-950/95',
-      tagColor: 'text-pink-300',
-      outerBorder: 'border-blue-500/50',
-      stripeColor: 'rgba(219, 39, 119, 0.08)'
+      bgDark: '#07122b', // Deep regal navy
+      accent: '#ec4899', // Vivid royal pink
+      accentDark: '#be185d', // Darker pink shadow band
+      textOnAccent: '#07122b', // Deep navy text on pink
+      jerseyBoxBg: '#0e224e', // Deep navy pill
+      tagline1: 'ROYAL HERITAGE',
+      tagline2: 'HALLA BOL',
+      logoBackdrop: true // White circular contrast roundel for the pink monogram logo against pink background
     };
   }
 
-  // Malgund Maha Giants (Blaze Orange & Ocean Sky Cyan)
+  // 3. Malgund Maha Giants (Midnight Navy & Blaze Orange)
   if (code === 'MMG' || name.includes('giant') || name.includes('malgund')) {
     return {
-      bgGradient: 'from-[#2b0e03] via-[#541c07] to-[#120401]',
-      primary: '#ea580c',
-      secondary: '#0284c7',
-      accentColor: '#38bdf8',
-      glow: 'rgba(234, 88, 12, 0.45)',
-      cardBg: 'bg-[#2b1006]/80',
-      badgeBorder: 'border-sky-400/60',
-      badgeBg: 'bg-orange-950/90',
-      numColor: 'text-sky-400',
-      shieldGlow: 'shadow-[0_0_70px_rgba(234,88,12,0.4)]',
-      captainBorder: 'border-sky-400/80',
-      captainBg: 'bg-gradient-to-r from-orange-950/95 via-[#521c08]/90 to-orange-950/95',
-      tagColor: 'text-sky-300',
-      outerBorder: 'border-orange-500/50',
-      stripeColor: 'rgba(2, 132, 199, 0.08)'
+      bgDark: '#081626', // Deep midnight navy
+      accent: '#ea580c', // Blaze orange
+      accentDark: '#c2410c', // Darker orange shadow band
+      textOnAccent: '#081626', // Deep navy text on orange
+      jerseyBoxBg: '#12253c', // Midnight navy pill
+      tagline1: 'UNSTOPPABLE FORCE',
+      tagline2: 'RISE AS GIANTS'
     };
   }
 
-  // Sherle Sunrisers (Sunburst Crimson Red & Solar Gold)
+  // 4. Sherle Sunrisers (Crimson Black & Solar Gold)
   if (code === 'SS' || name.includes('sunriser') || name.includes('sherle')) {
     return {
-      bgGradient: 'from-[#2b0707] via-[#571010] to-[#120202]',
-      primary: '#e11d48',
-      secondary: '#f97316',
-      accentColor: '#f59e0b',
-      glow: 'rgba(225, 29, 72, 0.45)',
-      cardBg: 'bg-[#2b0808]/80',
-      badgeBorder: 'border-amber-400/60',
-      badgeBg: 'bg-red-950/90',
-      numColor: 'text-amber-400',
-      shieldGlow: 'shadow-[0_0_70px_rgba(249,115,22,0.4)]',
-      captainBorder: 'border-amber-400/80',
-      captainBg: 'bg-gradient-to-r from-red-950/95 via-[#541212]/90 to-red-950/95',
-      tagColor: 'text-amber-300',
-      outerBorder: 'border-red-500/50',
-      stripeColor: 'rgba(245, 158, 11, 0.08)'
+      bgDark: '#230608', // Deep crimson black
+      accent: '#f59e0b', // Solar gold
+      accentDark: '#d97706', // Darker amber shadow band
+      textOnAccent: '#230608', // Deep crimson text on gold
+      jerseyBoxBg: '#390c10', // Deep crimson pill
+      tagline1: 'SUNBURST PRIDE',
+      tagline2: 'CONQUER ALL'
     };
   }
 
   // Dynamic fallback palette
   const pColor = team?.color || '#f59e0b';
   return {
-    bgGradient: 'from-[#121316] via-[#1c1d22] to-[#0a0a0c]',
-    primary: pColor,
-    secondary: team?.secondaryColor || '#f59e0b',
-    accentColor: '#f59e0b',
-    glow: `${pColor}40`,
-    cardBg: 'bg-zinc-900/80',
-    badgeBorder: 'border-amber-400/60',
-    badgeBg: 'bg-zinc-900/90',
-    numColor: 'text-amber-400',
-    shieldGlow: 'shadow-[0_0_50px_rgba(245,158,11,0.25)]',
-    captainBorder: 'border-amber-400/80',
-    captainBg: 'bg-zinc-900/90',
-    tagColor: 'text-amber-300',
-    outerBorder: 'border-zinc-700/60',
-    stripeColor: 'rgba(245, 158, 11, 0.06)'
+    bgDark: '#12141a',
+    accent: pColor,
+    accentDark: '#92400e',
+    textOnAccent: '#12141a',
+    jerseyBoxBg: 'rgba(255, 255, 255, 0.08)',
+    tagline1: 'OFFICIAL SQUAD',
+    tagline2: 'HFPL 2027'
   };
 };
 
@@ -448,8 +409,43 @@ export default function TeamReveal({ teamId, onBack }) {
 
   // Divide squad into two balanced columns if roster is large
   const halfSquad = Math.ceil(squad.length / 2);
-  const rosterCol1 = squad.length > 7 ? squad.slice(0, halfSquad) : squad;
-  const rosterCol2 = squad.length > 7 ? squad.slice(halfSquad) : [];
+  const rosterCol1 = squad.length > 5 ? squad.slice(0, halfSquad) : squad;
+  const rosterCol2 = squad.length > 5 ? squad.slice(halfSquad) : [];
+
+  // Team name split for two-tone hero headline
+  const nameParts = (team?.name || '').trim().split(' ');
+  const headlineLine1 = nameParts[0] || team?.name || '';
+  const headlineLine2 = nameParts.slice(1).join(' ');
+
+  // Clean roster row renderer for art-directed announcement poster
+  const renderPlayerRow = (p, idx) => {
+    const jerseyNum = p.jerseyNumber || p.jersey || String(idx + 1).padStart(2, '0');
+    return (
+      <div
+        key={p._id || idx}
+        className="flex items-center justify-between py-2 sm:py-2.5 border-b border-white/15"
+      >
+        <div className="flex items-center min-w-0 pr-3">
+          <div
+            className="w-8 sm:w-9 h-6 sm:h-7 rounded-[4px] flex items-center justify-center shrink-0 border border-white/10 shadow-sm"
+            style={{ backgroundColor: theme.jerseyBoxBg }}
+          >
+            <span className="font-mono font-black text-xs sm:text-sm tracking-wider text-white">
+              {jerseyNum}
+            </span>
+          </div>
+          <span className="font-black uppercase text-white tracking-wide text-xs sm:text-sm lg:text-base truncate ml-3 sm:ml-4">
+            {p.name}
+          </span>
+        </div>
+        <div className="px-3 sm:px-3.5 py-0.5 sm:py-1 rounded-full bg-white/10 border border-white/10 shrink-0">
+          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-white/80">
+            {p.category || 'ALL-ROUNDER'}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -862,268 +858,244 @@ export default function TeamReveal({ teamId, onBack }) {
         {/* STAGE 4 — FINAL FULL-SQUAD CRICKET POSTER                */}
         {/* ======================================================== */}
         {stage === 'poster' && (
-          <div className="w-full max-w-6xl mx-auto animate-dramatic-entrance">
+          <div className="w-full max-w-6xl mx-auto animate-dramatic-entrance flex flex-col items-center">
             
-            {/* The Master Poster Container */}
+            {/* The Master Poster 16:9 Canvas */}
             <div
-              className={`w-full min-h-[580px] lg:min-h-[640px] bg-gradient-to-br ${theme.bgGradient} border-2 ${theme.outerBorder} rounded-3xl p-5 sm:p-7 lg:p-9 shadow-[0_30px_90px_rgba(0,0,0,0.9)] relative overflow-hidden flex flex-col justify-between`}
+              className="relative w-full rounded-2xl sm:rounded-3xl border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.9)] overflow-hidden select-none min-h-[560px] sm:min-h-[600px] lg:aspect-[16/9]"
               style={{
-                boxShadow: `0 0 60px ${theme.glow}, 0 25px 80px rgba(0,0,0,0.9)`
+                backgroundColor: theme.bgDark
               }}
             >
-              {/* Cricket Vignette & Distressed Grunge Textures (CSS layered overlays) */}
+              {/* Layered Geometric Angular Accents */}
+              {/* 1. Underlying Accent Dark Depth Band */}
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
-                  background: 'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,0.85) 100%)'
+                  backgroundColor: theme.accentDark,
+                  clipPath: 'polygon(73% 0%, 100% 0%, 100% 100%, 48% 100%)'
                 }}
               />
-              {/* Dynamic Angular Cricket Stripes */}
+              {/* 2. Primary Vibrant Accent Geometric Polygon */}
               <div
-                className="absolute -right-20 -top-20 w-[500px] h-[500px] pointer-events-none opacity-30 rotate-12"
+                className="absolute inset-0 pointer-events-none"
                 style={{
-                  background: `repeating-linear-gradient(45deg, ${theme.stripeColor}, ${theme.stripeColor} 20px, transparent 20px, transparent 40px)`
+                  backgroundColor: theme.accent,
+                  clipPath: 'polygon(77% 0%, 100% 0%, 100% 100%, 52% 100%)'
+                }}
+              />
+              {/* 3. Subtle Warm Angular Gradient in Bottom-Right Corner */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(135deg, transparent 65%, rgba(0, 0, 0, 0.15) 100%)',
+                  clipPath: 'polygon(77% 0%, 100% 0%, 100% 100%, 52% 100%)'
                 }}
               />
 
-              {/* 4 Distressed Corner Grunge Accents */}
-              <div className="absolute top-0 left-0 w-28 h-28 bg-gradient-to-br from-black/80 via-black/30 to-transparent pointer-events-none" />
-              <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-black/80 via-black/30 to-transparent pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-28 h-28 bg-gradient-to-tr from-black/80 via-black/30 to-transparent pointer-events-none" />
-              <div className="absolute bottom-0 right-0 w-28 h-28 bg-gradient-to-tl from-black/80 via-black/30 to-transparent pointer-events-none" />
-
-              {/* CONTENT WRAPPER */}
-              <div className="relative z-10 flex flex-col justify-between h-full space-y-5">
+              {/* POSTER FOREGROUND CONTENT */}
+              <div className="relative z-10 w-full h-full p-6 sm:p-8 lg:p-10 flex flex-col justify-between">
                 
-                {/* 1. TOP SECTION: HFPL BRANDING & MASSIVE TEAM NAME */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/15 pb-4">
-                  {/* Left: Tournament Badge */}
+                {/* 1. TOP HEADER: HFPL BRANDING (LEFT) & TEAM CODE / SEASON (RIGHT) */}
+                <div className="flex items-start justify-between gap-4">
+                  {/* Left: Tournament Identity */}
                   <div className="flex items-center gap-3">
                     <img
                       src={hfplLogo}
                       alt="HFPL"
-                      className="h-10 sm:h-12 w-auto object-contain filter drop-shadow-md shrink-0"
+                      className="h-10 sm:h-12 w-auto object-contain filter drop-shadow-sm shrink-0"
                     />
-                    <div className="border-l border-white/20 pl-3">
-                      <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-white/90 block leading-tight">
+                    <div>
+                      <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-[0.22em] text-white block leading-tight">
                         HAPPY FAMILY PREMIER LEAGUE 2027
                       </span>
-                      <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-widest ${theme.tagColor} block leading-tight mt-0.5`}>
-                        OFFICIAL SQUAD ANNOUNCEMENT
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.28em] text-white/70 block leading-tight mt-0.5">
+                        OFFICIAL TEAM SQUAD
                       </span>
                     </div>
                   </div>
 
-                  {/* Right: Team Code Pill & Franchise Tag */}
-                  <div className="flex items-center gap-2 md:justify-end">
+                  {/* Right: Team Code & Season (Positioned over accent geometry) */}
+                  <div className="text-right">
                     <span
-                      className="px-3 py-1 rounded-md text-xs font-black uppercase tracking-wider text-black shadow-md"
-                      style={{ backgroundColor: theme.accentColor }}
+                      className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-wider block leading-none"
+                      style={{ color: theme.textOnAccent }}
                     >
                       {team.code}
                     </span>
-                    <span className="text-xs font-extrabold uppercase tracking-widest text-white/80">
-                      Season 2027
+                    <span
+                      className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] block mt-1"
+                      style={{ color: theme.textOnAccent, opacity: 0.85 }}
+                    >
+                      SEASON 2027
                     </span>
                   </div>
                 </div>
 
-                {/* Team Name Hero Heading */}
-                <div className="w-full text-center md:text-left py-1">
-                  <h1
-                    className="text-3xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight text-white leading-none drop-shadow-[0_4px_25px_rgba(0,0,0,0.9)]"
-                    style={{
-                      textShadow: `0 0 40px ${theme.glow}`
-                    }}
-                  >
-                    {team.name}
-                  </h1>
-                </div>
-
-                {/* 2. CENTRE SECTION: FULL PLAYER ROSTER (LEFT) + TEAM IDENTITY ARTWORK (RIGHT) */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center flex-1 my-auto">
+                {/* 2. MAIN BODY: LEFT CONTENT (HEADLINE + ROSTER + CAPTAIN) & RIGHT LOGO */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center flex-1 my-3 lg:my-5">
                   
-                  {/* LEFT & CENTRE (Col 1-7 or 8): VERTICALLY ALIGNED PLAYER ROSTER */}
-                  <div className="lg:col-span-7 xl:col-span-8 flex flex-col justify-center">
+                  {/* LEFT COLUMN: HERO TEAM HEADLINE, ROSTER, AND CAPTAIN */}
+                  <div className="lg:col-span-7 xl:col-span-8 flex flex-col justify-between h-full min-w-0 pr-0 lg:pr-6">
                     
-                    <div className="flex items-center justify-between mb-2.5 px-1 border-b border-white/10 pb-1.5">
-                      <span className="text-xs font-black uppercase tracking-[0.2em] text-white/70">
-                        CONFIRMED SQUAD ({squad.length} PLAYERS)
-                      </span>
-                      <span className="text-[11px] font-medium text-white/50">
-                        Sorted by Purchase Order
-                      </span>
+                    {/* Team Name Hero Headline */}
+                    <div className="pt-1">
+                      <h1 className="font-black uppercase tracking-tight leading-[0.92] text-3xl sm:text-5xl lg:text-6xl xl:text-7xl">
+                        <span className="block text-white">{headlineLine1}</span>
+                        {headlineLine2 && (
+                          <span className="block" style={{ color: theme.accent }}>
+                            {headlineLine2}
+                          </span>
+                        )}
+                      </h1>
                     </div>
 
-                    {squad.length === 0 ? (
-                      // Graceful handling if squad is empty
-                      <div className="py-8 px-6 rounded-2xl bg-black/40 border border-white/10 text-center">
-                        <Users className="w-10 h-10 text-white/40 mx-auto mb-2" />
-                        <h4 className="text-base font-bold text-white uppercase tracking-wider">No Players Acquired</h4>
-                        <p className="text-xs text-white/60 mt-1">This squad will be captained solely by the assigned leader.</p>
-                      </div>
-                    ) : (
-                      // Clean, high-legibility aligned roster (1 or 2 columns based on size)
-                      <div className={`grid ${squad.length > 7 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-x-5 gap-y-2 max-h-[300px] lg:max-h-[340px] overflow-y-auto pr-1`}>
-                        {/* Column 1 */}
-                        <div className="space-y-1.5">
-                          {rosterCol1.map((p, idx) => {
-                            const jerseyNum = p.jerseyNumber || p.jersey || String(idx + 1).padStart(2, '0');
-                            return (
-                              <div
-                                key={p._id || idx}
-                                className="flex items-center justify-between py-1.5 px-3 rounded-xl bg-black/45 border border-white/10 hover:border-white/20 transition shadow-sm"
-                              >
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <span className={`font-mono font-black text-xs sm:text-sm tracking-wider shrink-0 ${theme.numColor}`}>
-                                    {jerseyNum}
-                                  </span>
-                                  <span className="font-extrabold uppercase text-white tracking-wide text-xs sm:text-sm truncate">
-                                    {p.name}
-                                  </span>
-                                </div>
-                                {p.category && (
-                                  <span className="text-[9px] sm:text-[10px] tracking-wider uppercase font-bold text-white/70 px-2 py-0.5 rounded bg-white/10 shrink-0 ml-2">
-                                    {p.category}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })}
+                    {/* Player Roster Section */}
+                    <div className="my-auto py-3">
+                      {squad.length === 0 ? (
+                        <div className="py-6 text-center text-white/50 text-xs font-semibold tracking-widest uppercase border-y border-white/15">
+                          No Squad Players Acquired
                         </div>
-
-                        {/* Column 2 (if squad > 7) */}
-                        {rosterCol2.length > 0 && (
-                          <div className="space-y-1.5">
-                            {rosterCol2.map((p, idx) => {
-                              const globalIdx = halfSquad + idx;
-                              const jerseyNum = p.jerseyNumber || p.jersey || String(globalIdx + 1).padStart(2, '0');
-                              return (
-                                <div
-                                  key={p._id || globalIdx}
-                                  className="flex items-center justify-between py-1.5 px-3 rounded-xl bg-black/45 border border-white/10 hover:border-white/20 transition shadow-sm"
-                                >
-                                  <div className="flex items-center gap-2.5 min-w-0">
-                                    <span className={`font-mono font-black text-xs sm:text-sm tracking-wider shrink-0 ${theme.numColor}`}>
-                                      {jerseyNum}
-                                    </span>
-                                    <span className="font-extrabold uppercase text-white tracking-wide text-xs sm:text-sm truncate">
-                                      {p.name}
-                                    </span>
-                                  </div>
-                                  {p.category && (
-                                    <span className="text-[9px] sm:text-[10px] tracking-wider uppercase font-bold text-white/70 px-2 py-0.5 rounded bg-white/10 shrink-0 ml-2">
-                                      {p.category}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
+                      ) : squad.length > 5 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 border-t border-white/15">
+                          <div>
+                            {rosterCol1.map((p, idx) => renderPlayerRow(p, idx))}
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                          <div>
+                            {rosterCol2.map((p, idx) => renderPlayerRow(p, halfSquad + idx))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="border-t border-white/15">
+                          {squad.map((p, idx) => renderPlayerRow(p, idx))}
+                        </div>
+                      )}
+                    </div>
 
-                  {/* RIGHT (Col 8-12): HERO TEAM IDENTITY ARTWORK & SHIELD EMBLEM */}
-                  <div className="lg:col-span-5 xl:col-span-4 flex flex-col items-center justify-center relative">
-                    
-                    {/* Layered Heraldic Emblem Container */}
-                    <div className="relative w-52 h-52 sm:w-64 sm:h-64 flex items-center justify-center">
-                      
-                      {/* Ambient Logo Glow */}
-                      <div
-                        className="absolute inset-0 rounded-full blur-3xl opacity-35"
-                        style={{ backgroundColor: theme.primary }}
-                      />
-
-                      {/* Stencil Watermark Team Code behind shield */}
-                      <span className="absolute font-black text-7xl sm:text-8xl tracking-widest text-white/5 select-none pointer-events-none uppercase">
-                        {team.code}
-                      </span>
-
-                      {/* Decorative Cricket Graphic Elements (SVG crossed bats & ball silhouette) */}
-                      <svg className="absolute inset-0 w-full h-full opacity-15 pointer-events-none" viewBox="0 0 200 200" fill="none">
-                        <path d="M40 160 L160 40 M45 165 L35 155 M155 45 L165 35" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-                        <path d="M160 160 L40 40 M155 165 L165 155 M45 45 L35 35" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-                        <circle cx="100" cy="100" r="32" stroke="currentColor" strokeWidth="2.5" fill="none" />
-                        <path d="M84 75 C95 90 95 110 84 125" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" />
-                        <path d="M116 75 C105 90 105 110 116 125" stroke="currentColor" strokeWidth="2" strokeDasharray="3 3" />
+                    {/* Captain Section */}
+                    <div className="pt-2 flex items-center">
+                      {/* Geometric Crown Silhouette matching reference design */}
+                      <svg
+                        className="w-9 h-9 sm:w-11 sm:h-11 shrink-0"
+                        viewBox="0 0 48 48"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        style={{ color: theme.accent }}
+                      >
+                        <path d="M6 14L13 32H35L42 14L31 22L24 8L17 22L6 14Z" fill="currentColor" />
+                        <rect x="13" y="35" width="22" height="4" rx="1" fill="currentColor" />
                       </svg>
 
-                      {/* Layered Emblem Shield Frame */}
-                      <div
-                        className={`w-44 h-44 sm:w-56 sm:h-56 rounded-3xl bg-gradient-to-br from-black/80 via-zinc-900/90 to-black/95 p-4 border-2 ${theme.badgeBorder} ${theme.shieldGlow} flex items-center justify-center relative overflow-hidden`}
-                      >
-                        {/* Metallic Inset Border */}
-                        <div className="absolute inset-1.5 rounded-2xl border border-white/10 pointer-events-none" />
+                      <div className="ml-3 sm:ml-4 min-w-0">
+                        <span
+                          className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] block leading-tight"
+                          style={{ color: theme.accent }}
+                        >
+                          CAPTAIN
+                        </span>
+                        <h2 className="text-xl sm:text-3xl lg:text-4xl font-black text-white uppercase tracking-tight leading-none mt-1 truncate">
+                          {captainName}
+                        </h2>
+                      </div>
+                    </div>
 
-                        {/* Team Hero Logo */}
-                        {logoSrc ? (
+                  </div>
+
+                  {/* RIGHT COLUMN: OFFICIAL TEAM LOGO */}
+                  <div className="hidden lg:flex lg:col-span-5 xl:col-span-4 flex-col items-center justify-center relative h-full">
+                    <div className="w-full flex items-center justify-center py-4">
+                      {logoSrc ? (
+                        theme.logoBackdrop ? (
+                          <div className="w-56 h-56 sm:w-64 sm:h-64 lg:w-72 lg:h-72 rounded-full bg-white shadow-[0_15px_35px_rgba(0,0,0,0.25)] border-2 border-white/80 flex items-center justify-center p-6 sm:p-7 transition-transform duration-500 hover:scale-105">
+                            <img
+                              src={logoSrc}
+                              alt={team.name}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        ) : (
                           <img
                             src={logoSrc}
                             alt={team.name}
-                            className="w-full h-full object-contain filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]"
+                            className="max-w-[240px] xl:max-w-[320px] max-h-[240px] xl:max-h-[320px] object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.35)] transition-transform duration-500 hover:scale-105"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
                           />
-                        ) : (
-                          <Shield className="w-24 h-24 text-white/70" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Franchise Motto / Category */}
-                    <div className="mt-3 text-center">
-                      <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/90 block">
-                        OFFICIAL FRANCHISE
-                      </span>
-                      <span className={`text-[10px] font-bold uppercase tracking-widest ${theme.tagColor} block mt-0.5`}>
-                        {team.name}
-                      </span>
+                        )
+                      ) : (
+                        <div
+                          className="text-6xl xl:text-7xl font-black uppercase tracking-wider select-none"
+                          style={{ color: theme.textOnAccent }}
+                        >
+                          {team.code}
+                        </div>
+                      )}
                     </div>
                   </div>
 
                 </div>
 
-                {/* 3. BOTTOM SECTION: CAPTAIN (PROMINENT & DISTINCT) + CONTROLS */}
-                <div
-                  className={`mt-auto pt-3.5 pb-3.5 px-5 sm:px-8 rounded-2xl border ${theme.captainBorder} ${theme.captainBg} shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
-                >
-                  {/* Captain Title & Name */}
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className={`p-2.5 rounded-xl ${theme.badgeBg} border ${theme.badgeBorder} shrink-0 shadow-lg`}>
-                      <Crown className="w-5 h-5 sm:w-6 sm:h-6 fill-amber-400 text-amber-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-amber-400 block leading-tight">
-                        CAPTAIN
-                      </span>
-                      <h3 className="text-xl sm:text-3xl lg:text-4xl font-black text-white uppercase tracking-wide truncate leading-tight">
-                        {captainName}
-                      </h3>
-                    </div>
-                  </div>
+                {/* Mobile Team Logo (fallback for narrow screens) */}
+                <div className="flex lg:hidden items-center justify-center py-3">
+                  {logoSrc && (
+                    theme.logoBackdrop ? (
+                      <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-white p-3 sm:p-4 shadow-xl border border-white/80 flex items-center justify-center">
+                        <img
+                          src={logoSrc}
+                          alt={team.name}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <img
+                        src={logoSrc}
+                        alt={team.name}
+                        className="max-w-[150px] sm:max-w-[180px] max-h-[150px] sm:max-h-[180px] object-contain filter drop-shadow-md"
+                      />
+                    )
+                  )}
+                </div>
 
-                  {/* Poster Actions: Replay & Return to Results */}
-                  <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 self-end sm:self-auto">
-                    <button
-                      onClick={handleReplay}
-                      className="px-4 sm:px-5 py-2 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-white font-semibold text-xs border border-zinc-700/80 transition flex items-center gap-1.5 shadow-md hover:scale-105 active:scale-95"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Replay Reveal</span>
-                    </button>
-
-                    <button
-                      onClick={handleReturn}
-                      className="px-5 sm:px-6 py-2 rounded-full bg-white hover:bg-zinc-200 text-black font-bold text-xs transition flex items-center gap-1.5 shadow-md hover:scale-105 active:scale-95"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Return to Results</span>
-                    </button>
-                  </div>
+                {/* 3. BOTTOM RIGHT TEAM TAGLINE */}
+                <div className="absolute bottom-6 sm:bottom-8 right-6 sm:right-10 text-right pointer-events-none select-none">
+                  <span
+                    className="text-[9px] sm:text-[10px] lg:text-[11px] font-extrabold uppercase tracking-[0.35em] block leading-tight"
+                    style={{ color: theme.textOnAccent, opacity: 0.85 }}
+                  >
+                    {theme.tagline1}
+                  </span>
+                  <span
+                    className="text-[9px] sm:text-[10px] lg:text-[11px] font-extrabold uppercase tracking-[0.35em] block leading-tight mt-0.5"
+                    style={{ color: theme.textOnAccent, opacity: 0.85 }}
+                  >
+                    {theme.tagline2}
+                  </span>
                 </div>
 
               </div>
+            </div>
+
+            {/* Poster Actions: Replay & Return to Results */}
+            <div className="flex items-center justify-center gap-3 sm:gap-4 mt-5">
+              <button
+                onClick={handleReplay}
+                className="px-5 py-2.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-white font-semibold text-xs border border-zinc-700/80 transition flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Replay Reveal</span>
+              </button>
+
+              <button
+                onClick={handleReturn}
+                className="px-6 py-2.5 rounded-full bg-white hover:bg-zinc-200 text-black font-bold text-xs transition flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Return to Results</span>
+              </button>
             </div>
 
           </div>
