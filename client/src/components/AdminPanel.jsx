@@ -52,7 +52,7 @@ export default function AdminPanel({ onLogout }) {
   // Forms
   const [playerForm, setPlayerForm] = useState({
     name: '', category: 'All-rounder', battingStyle: 'Right Hand Bat',
-    bowlingStyle: 'Right Arm Medium', basePrice: 200, photo: '',
+    bowlingStyle: 'Right Arm Medium', basePrice: 500, photo: '',
     description: '', roundId: '', orderInRound: 1, matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0
   });
 
@@ -268,7 +268,7 @@ export default function AdminPanel({ onLogout }) {
         setAuctionState((prev) => ({
           ...prev,
           status: 'bidding',
-          currentBid: prev?.currentBid || prev?.currentPlayer?.basePrice || 200
+          currentBid: prev?.currentBid || prev?.currentPlayer?.basePrice || 500
         }));
       }
       showMessage('Bidding session started!');
@@ -614,7 +614,7 @@ export default function AdminPanel({ onLogout }) {
         const pObj = {
           name: row[0],
           category: row[1] || 'All-rounder',
-          basePrice: Number(row[2]) || 200,
+          basePrice: Math.max(500, Number(row[2]) || 500),
           battingStyle: row[3] || 'Right Hand Bat',
           bowlingStyle: row[4] || 'Right Arm Medium'
         };
@@ -1798,7 +1798,7 @@ export default function AdminPanel({ onLogout }) {
                       const defaultSeq = getNextSequenceForRound(initialRoundId);
                       setPlayerForm({
                         name: '', category: 'All-rounder', battingStyle: 'Right Hand Bat',
-                        bowlingStyle: 'Right Arm Medium', basePrice: 200, photo: '',
+                        bowlingStyle: 'Right Arm Medium', basePrice: 500, photo: '',
                         description: '', roundId: initialRoundId, orderInRound: defaultSeq,
                         matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0
                       });
@@ -2317,7 +2317,7 @@ export default function AdminPanel({ onLogout }) {
                   <input
                     type="number"
                     required
-                    min="0"
+                    min="500"
                     step="50"
                     value={playerForm.basePrice}
                     onChange={(e) => setPlayerForm({ ...playerForm, basePrice: e.target.value })}
@@ -2693,7 +2693,7 @@ export default function AdminPanel({ onLogout }) {
                 type="button"
                 onClick={() => {
                   setCsvContent(
-                    `Name,Category,BasePrice,BattingStyle,BowlingStyle\nSunil Gavaskar,Batter,500,Right Hand Bat,Right Arm Off Spin\nKapil Dev,All-rounder,600,Right Hand Bat,Right Arm Fast\nZaheer Khan,Bowler,400,Left Hand Bat,Left Arm Fast Medium\nMS Dhoni,Wicketkeeper,600,Right Hand Bat,None`
+                    `Name,Category,BasePrice,BattingStyle,BowlingStyle\nSunil Gavaskar,Batter,500,Right Hand Bat,Right Arm Off Spin\nKapil Dev,All-rounder,600,Right Hand Bat,Right Arm Fast\nZaheer Khan,Bowler,500,Left Hand Bat,Left Arm Fast Medium\nMS Dhoni,Wicketkeeper,600,Right Hand Bat,None`
                   );
                 }}
                 className="text-xs text-[#18181b] hover:underline font-bold"

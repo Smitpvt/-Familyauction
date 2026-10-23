@@ -22,7 +22,7 @@ const getOrCreateAuctionState = async () => {
     state = new AuctionState({
       currentRound: firstRound ? firstRound._id : null,
       currentPlayer: firstPlayer ? firstPlayer._id : null,
-      currentBid: firstPlayer ? firstPlayer.basePrice : 0,
+      currentBid: firstPlayer ? Math.max(500, firstPlayer.basePrice || 500) : 0,
       highestBidder: null,
       status: 'idle',
       bidIncrementOptions: [100, 200, 500, 1000],
@@ -197,11 +197,11 @@ exports.setRound = async (req, res) => {
         state.highestBidder = (tx && tx.team) ? tx.team : nextPlayer.soldToTeam;
         state.status = 'sold';
       } else if (nextPlayer.status === 'unsold') {
-        state.currentBid = nextPlayer.basePrice;
+        state.currentBid = Math.max(500, nextPlayer.basePrice || 500);
         state.highestBidder = null;
         state.status = 'unsold';
       } else {
-        state.currentBid = nextPlayer.basePrice;
+        state.currentBid = Math.max(500, nextPlayer.basePrice || 500);
         state.highestBidder = null;
         state.bidHistory = [];
         state.status = 'ready';
@@ -241,11 +241,11 @@ exports.setPlayer = async (req, res) => {
       state.highestBidder = (tx && tx.team) ? tx.team : (player.soldToTeam?._id || player.soldToTeam);
       state.status = 'sold';
     } else if (player.status === 'unsold') {
-      state.currentBid = player.basePrice;
+      state.currentBid = Math.max(500, player.basePrice || 500);
       state.highestBidder = null;
       state.status = 'unsold';
     } else {
-      state.currentBid = player.basePrice;
+      state.currentBid = Math.max(500, player.basePrice || 500);
       state.highestBidder = null;
       state.bidHistory = [];
       state.status = 'ready';
@@ -277,8 +277,9 @@ exports.startBidding = async (req, res) => {
     }
 
     state.status = 'bidding';
-    if (!state.currentBid || state.currentBid < player.basePrice) {
-      state.currentBid = player.basePrice;
+    const effectiveBase = Math.max(500, player.basePrice || 500);
+    if (!state.currentBid || state.currentBid < effectiveBase) {
+      state.currentBid = effectiveBase;
     }
     await state.save();
 
@@ -324,10 +325,11 @@ exports.placeBid = (req, res) => {
       let isIncremental = false;
       let appliedInc = 0;
 
-      // Base price reference: use currentBid if initialized and valid, otherwise player basePrice
-      const currentBase = (state.currentBid && state.currentBid >= player.basePrice)
+      // Base price reference: use currentBid if initialized and valid, otherwise player basePrice (min ₹500)
+      const effectiveBase = Math.max(500, player.basePrice || 500);
+      const currentBase = (state.currentBid && state.currentBid >= effectiveBase)
         ? state.currentBid
-        : player.basePrice;
+        : effectiveBase;
 
       if (increment !== undefined && increment !== null && increment !== '') {
         // INCREMENTAL BIDDING: Add selected increment to authoritative current bid
@@ -375,11 +377,11 @@ exports.placeBid = (req, res) => {
         });
       }
 
-      // 2. Prevent bids below player base price
-      if (targetAmount < player.basePrice) {
+      // 2. Prevent bids below player base price (min ₹500)
+      if (targetAmount < effectiveBase) {
         return res.status(400).json({
           success: false,
-          message: `Bid cannot be lower than player base price (₹${player.basePrice}).`
+          message: `Bid cannot be lower than player base price (₹${effectiveBase}).`
         });
       }
 

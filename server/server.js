@@ -60,7 +60,18 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/team_logo', express.static(path.join(__dirname, 'uploads')));
 
 // Connect to MongoDB
-connectDB();
+connectDB().then(() => {
+  // Ensure all registered non-sold players have minimum ₹500 base price
+  const Player = require('./models/Player');
+  Player.updateMany(
+    { status: { $ne: 'sold' }, $or: [{ basePrice: { $lt: 500 } }, { basePrice: { $exists: false } }] },
+    { $set: { basePrice: 500 } }
+  ).then((res) => {
+    if (res.modifiedCount > 0) {
+      console.log(`[Base Price]: Updated ${res.modifiedCount} registered player(s) to minimum ₹500 base price.`);
+    }
+  }).catch((err) => console.error('[Base Price Sync Error]:', err.message));
+}).catch(() => {});
 
 // API Routes
 app.use('/api/auth', require('./routes/auth'));

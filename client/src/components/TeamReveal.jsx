@@ -32,6 +32,7 @@ const getTeamPosterTheme = (team) => {
   const name = (team?.name || '').toLowerCase();
 
   // 1. Kotawade Knight Riders (Royal Deep Purple & Championship Gold)
+  // Vertical shield logo (1009 x 1559) — scaled up by ~24%
   if (code === 'KKR' || name.includes('knight') || name.includes('kotawade')) {
     return {
       bgDark: '#23043b', // Deep royal purple
@@ -40,11 +41,13 @@ const getTeamPosterTheme = (team) => {
       textOnAccent: '#23043b', // Deep purple text on gold
       jerseyBoxBg: '#340854', // Dark purple pill
       tagline1: 'PLAY BOLD',
-      tagline2: 'RIDE TOGETHER'
+      tagline2: 'RIDE TOGETHER',
+      logoClasses: 'max-w-[150px] sm:max-w-[200px] lg:max-w-[250px] xl:max-w-[285px] max-h-[150px] sm:max-h-[200px] lg:max-h-[250px] xl:max-h-[285px]'
     };
   }
 
   // 2. Ratnagiri Royals (Regal Navy & Vivid Royal Pink)
+  // Vertical crest (1069 x 1472) inside contrast circular roundel — roundel scaled up by ~23%
   if (code === 'RR' || name.includes('royal') || name.includes('ratnagiri')) {
     return {
       bgDark: '#07122b', // Deep regal navy
@@ -54,11 +57,13 @@ const getTeamPosterTheme = (team) => {
       jerseyBoxBg: '#0e224e', // Deep navy pill
       tagline1: 'ROYAL HERITAGE',
       tagline2: 'HALLA BOL',
-      logoBackdrop: true // White circular contrast roundel for the pink monogram logo against pink background
+      logoBackdrop: true, // White circular contrast roundel for the pink monogram logo against pink background
+      backdropClasses: 'w-[136px] h-[136px] sm:w-[176px] sm:h-[176px] lg:w-[220px] lg:h-[220px] xl:w-[256px] xl:h-[256px]'
     };
   }
 
   // 3. Malgund Maha Giants (Midnight Navy & Blaze Orange)
+  // Square emblem logo (1254 x 1254) — scaled up by ~22%
   if (code === 'MMG' || name.includes('giant') || name.includes('malgund')) {
     return {
       bgDark: '#081626', // Deep midnight navy
@@ -67,11 +72,13 @@ const getTeamPosterTheme = (team) => {
       textOnAccent: '#081626', // Deep navy text on orange
       jerseyBoxBg: '#12253c', // Midnight navy pill
       tagline1: 'UNSTOPPABLE FORCE',
-      tagline2: 'RISE AS GIANTS'
+      tagline2: 'RISE AS GIANTS',
+      logoClasses: 'max-w-[145px] sm:max-w-[195px] lg:max-w-[245px] xl:max-w-[280px] max-h-[145px] sm:max-h-[195px] lg:max-h-[245px] xl:max-h-[280px]'
     };
   }
 
   // 4. Sherle Sunrisers (Crimson Black & Solar Gold)
+  // Horizontal emblem logo (1536 x 1024) — scaled up by ~26%
   if (code === 'SS' || name.includes('sunriser') || name.includes('sherle')) {
     return {
       bgDark: '#230608', // Deep crimson black
@@ -80,7 +87,8 @@ const getTeamPosterTheme = (team) => {
       textOnAccent: '#230608', // Deep crimson text on gold
       jerseyBoxBg: '#390c10', // Deep crimson pill
       tagline1: 'SUNBURST PRIDE',
-      tagline2: 'CONQUER ALL'
+      tagline2: 'CONQUER ALL',
+      logoClasses: 'max-w-[150px] sm:max-w-[200px] lg:max-w-[250px] xl:max-w-[290px] max-h-[140px] sm:max-h-[185px] lg:max-h-[230px] xl:max-h-[265px]'
     };
   }
 
@@ -93,7 +101,8 @@ const getTeamPosterTheme = (team) => {
     textOnAccent: '#12141a',
     jerseyBoxBg: 'rgba(255, 255, 255, 0.08)',
     tagline1: 'OFFICIAL SQUAD',
-    tagline2: 'HFPL 2027'
+    tagline2: 'HFPL 2027',
+    logoClasses: 'max-w-[150px] sm:max-w-[200px] lg:max-w-[250px] xl:max-w-[285px] max-h-[150px] sm:max-h-[200px] lg:max-h-[250px] xl:max-h-[285px]'
   };
 };
 
@@ -561,50 +570,38 @@ export default function TeamReveal({ teamId, onBack }) {
   const captainName = /sheslekar/i.test(rawCaptain) ? 'Shrirang Sherlekar' : (rawCaptain || 'Team Captain');
   const theme = getTeamPosterTheme(team);
 
-  // Divide squad into two balanced columns if roster is large
-  const halfSquad = Math.ceil(squad.length / 2);
-  const rosterCol1 = squad.length > 5 ? squad.slice(0, halfSquad) : squad;
-  const rosterCol2 = squad.length > 5 ? squad.slice(halfSquad) : [];
+  // Dynamic column layout for poster based on squad size (balanced columns inside reserved area)
+  const squadSize = squad.length;
+  const numPosterCols = squadSize > 5 ? 2 : 1;
+  const playersPerCol = Math.ceil(squadSize / numPosterCols);
+  const rosterColumns = [];
+  for (let i = 0; i < numPosterCols; i++) {
+    rosterColumns.push(squad.slice(i * playersPerCol, (i + 1) * playersPerCol));
+  }
 
   // Team name split for two-tone hero headline
   const nameParts = (team?.name || '').trim().split(' ');
   const headlineLine1 = nameParts[0] || team?.name || '';
   const headlineLine2 = nameParts.slice(1).join(' ');
 
-  // Clean roster row renderer for art-directed announcement poster
-  const renderPlayerRow = (p, idx) => {
-    const jerseyNum = p.jerseyNumber || p.jersey || String(idx + 1).padStart(2, '0');
-    return (
-      <div
-        key={p._id || idx}
-        className="flex items-center justify-between py-2 sm:py-2.5 border-b border-white/15"
-      >
-        <div className="flex items-center min-w-0 pr-3">
-          <div
-            className="w-8 sm:w-9 h-6 sm:h-7 rounded-[4px] flex items-center justify-center shrink-0 border border-white/10 shadow-sm"
-            style={{ backgroundColor: theme.jerseyBoxBg }}
-          >
-            <span className="font-mono font-black text-xs sm:text-sm tracking-wider text-white">
-              {jerseyNum}
-            </span>
-          </div>
-          <span className="font-black uppercase text-white tracking-wide text-xs sm:text-sm lg:text-base truncate ml-3 sm:ml-4">
-            {p.name}
-          </span>
-        </div>
-        <div className="px-3 sm:px-3.5 py-0.5 sm:py-1 rounded-full bg-white/10 border border-white/10 shrink-0">
-          <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-white/80">
-            {p.category || 'ALL-ROUNDER'}
-          </span>
-        </div>
-      </div>
-    );
-  };
+  // Clean, high-contrast roster row renderer — player full name only for projector screen
+  const renderPlayerRow = (p, globalIdx) => (
+    <div
+      key={p._id || p.id || globalIdx}
+      className="py-1 sm:py-1.5 lg:py-2 border-b border-white/15 min-w-0"
+    >
+      <span className="font-black uppercase text-white tracking-wide text-xs sm:text-sm lg:text-[15px] xl:text-[17px] block truncate">
+        {p.name}
+      </span>
+    </div>
+  );
 
   return (
     <div
       ref={containerRef}
-      className="relative min-h-screen w-full bg-[#08090a] text-white overflow-hidden flex flex-col justify-between font-sans selection:bg-amber-500 selection:text-black"
+      className={`relative w-full bg-[#08090a] text-white overflow-hidden flex flex-col justify-between font-sans selection:bg-amber-500 selection:text-black ${
+        stage === 'poster' ? 'h-screen max-h-screen' : 'min-h-screen'
+      }`}
       style={{
         backgroundImage: `radial-gradient(circle at 50% 40%, ${teamColor}15 0%, #08090a 75%)`
       }}
@@ -676,7 +673,11 @@ export default function TeamReveal({ teamId, onBack }) {
       </header>
 
       {/* MAIN PRESENTATION STAGE */}
-      <main className="flex-1 flex items-center justify-center p-3 sm:p-6 lg:p-8 relative z-10 w-full max-w-7xl mx-auto pt-14">
+      <main className={`flex-1 flex items-center justify-center relative z-10 w-full max-w-7xl mx-auto ${
+        stage === 'poster'
+          ? 'pt-12 sm:pt-14 pb-1 px-2 sm:px-4 overflow-hidden min-h-0'
+          : 'p-3 sm:p-6 lg:p-8 pt-14'
+      }`}>
         
         {/* ======================================================== */}
         {/* STAGE 1 — INTRO WITH 3D COIN FLIP & NAME REVEAL          */}
@@ -1019,16 +1020,16 @@ export default function TeamReveal({ teamId, onBack }) {
         {/* STAGE 4 — FINAL FULL-SQUAD CRICKET POSTER                */}
         {/* ======================================================== */}
         {stage === 'poster' && (
-          <div className="w-full max-w-6xl mx-auto animate-dramatic-entrance flex flex-col items-center">
+          <div className="w-full max-w-6xl mx-auto animate-dramatic-entrance flex flex-col items-center justify-center h-full max-h-full">
             
             {/* The Master Poster 16:9 Canvas */}
             <div
-              className="relative w-full rounded-2xl sm:rounded-3xl border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.9)] overflow-hidden select-none min-h-[560px] sm:min-h-[600px] lg:aspect-[16/9]"
+              className="relative w-full rounded-2xl sm:rounded-3xl border border-white/15 shadow-[0_25px_80px_rgba(0,0,0,0.9)] overflow-hidden select-none aspect-[16/9] max-h-[calc(100vh-130px)] sm:max-h-[calc(100vh-140px)] flex flex-col justify-between"
               style={{
                 backgroundColor: theme.bgDark
               }}
             >
-              {/* Layered Geometric Angular Accents */}
+              {/* Layered Geometric Angular Accents (Preserved Franchise Art Direction) */}
               {/* 1. Underlying Accent Dark Depth Band */}
               <div
                 className="absolute inset-0 pointer-events-none"
@@ -1055,37 +1056,37 @@ export default function TeamReveal({ teamId, onBack }) {
               />
 
               {/* POSTER FOREGROUND CONTENT */}
-              <div className="relative z-10 w-full h-full p-6 sm:p-8 lg:p-10 flex flex-col justify-between">
+              <div className="relative z-10 w-full h-full p-4 sm:p-5 lg:p-7 flex flex-col justify-between overflow-hidden">
                 
-                {/* 1. TOP HEADER: HFPL BRANDING (LEFT) & TEAM CODE / SEASON (RIGHT) */}
-                <div className="flex items-start justify-between gap-4">
-                  {/* Left: Tournament Identity */}
-                  <div className="flex items-center gap-3">
+                {/* 1. TOP HEADER: HFPL TOURNAMENT IDENTITY & TEAM CODE / SEASON (RIGHT) */}
+                <div className="flex items-center justify-between gap-3 sm:gap-4 pb-2 sm:pb-2.5 border-b border-white/15 shrink-0">
+                  <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
                     <img
                       src={hfplLogo}
                       alt="HFPL"
-                      className="h-10 sm:h-12 w-auto object-contain filter drop-shadow-sm shrink-0"
+                      className="h-8 sm:h-9 lg:h-11 w-auto object-contain filter drop-shadow-sm shrink-0"
                     />
-                    <div>
-                      <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-[0.22em] text-white block leading-tight">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] lg:text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/80 block leading-tight truncate">
                         HAPPY FAMILY PREMIER LEAGUE 2027
                       </span>
-                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.28em] text-white/70 block leading-tight mt-0.5">
-                        OFFICIAL TEAM SQUAD
+                      <span className="text-[8px] text-white/40 hidden sm:inline">&bull;</span>
+                      <span className="text-[8px] sm:text-[9px] lg:text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400/90 hidden sm:inline">
+                        OFFICIAL SQUAD
                       </span>
                     </div>
                   </div>
 
-                  {/* Right: Team Code & Season (Positioned over accent geometry) */}
-                  <div className="text-right">
+                  {/* Right: Team Code & Season Badge */}
+                  <div className="text-right shrink-0">
                     <span
-                      className="text-2xl sm:text-3xl lg:text-4xl font-black uppercase tracking-wider block leading-none"
+                      className="text-xl sm:text-2xl lg:text-3xl font-black uppercase tracking-wider block leading-none"
                       style={{ color: theme.textOnAccent }}
                     >
                       {team.code}
                     </span>
                     <span
-                      className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] block mt-1"
+                      className="text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.25em] block mt-0.5 sm:mt-1"
                       style={{ color: theme.textOnAccent, opacity: 0.85 }}
                     >
                       SEASON 2027
@@ -1093,81 +1094,55 @@ export default function TeamReveal({ teamId, onBack }) {
                   </div>
                 </div>
 
-                {/* 2. MAIN BODY: LEFT CONTENT (HEADLINE + ROSTER + CAPTAIN) & RIGHT LOGO */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center flex-1 my-3 lg:my-5">
+                {/* 2. MAIN BODY: LEFT/CENTER (TEAM NAME + SQUAD ROSTER) + RIGHT (OFFICIAL LOGO) */}
+                <div className="grid grid-cols-12 gap-4 lg:gap-6 items-center flex-1 my-auto min-h-0 py-1 sm:py-2">
                   
-                  {/* LEFT COLUMN: HERO TEAM HEADLINE, ROSTER, AND CAPTAIN */}
-                  <div className="lg:col-span-7 xl:col-span-8 flex flex-col justify-between h-full min-w-0 pr-0 lg:pr-6">
+                  {/* LEFT/CENTER: RESERVED ROSTER AREA (STAYS CLEAR OF LOGO & GOLD DIAGONAL) */}
+                  <div className="col-span-7 lg:col-span-7 xl:col-span-7 flex flex-col justify-center h-full min-w-0 pr-1 sm:pr-4">
                     
-                    {/* Team Name Hero Headline */}
-                    <div className="pt-1">
-                      <h1 className="font-black uppercase tracking-tight leading-[0.92] text-3xl sm:text-5xl lg:text-6xl xl:text-7xl">
-                        <span className="block text-white">{headlineLine1}</span>
+                    {/* PROMINENT TEAM NAME HEADING NEAR TOP OF ROSTER AREA */}
+                    <div className="shrink-0 mb-1.5 sm:mb-2 lg:mb-2.5">
+                      <h1 className="font-black uppercase tracking-tight leading-none text-2xl sm:text-3xl lg:text-4xl xl:text-[42px] truncate">
+                        <span className="text-white">{headlineLine1}</span>{' '}
                         {headlineLine2 && (
-                          <span className="block" style={{ color: theme.accent }}>
-                            {headlineLine2}
-                          </span>
+                          <span style={{ color: theme.accent }}>{headlineLine2}</span>
                         )}
                       </h1>
                     </div>
 
-                    {/* Player Roster Section */}
-                    <div className="my-auto py-3">
+                    {/* COMPLETE SQUAD ROSTER DIRECTLY BELOW TEAM NAME */}
+                    <div className="min-h-0">
                       {squad.length === 0 ? (
                         <div className="py-6 text-center text-white/50 text-xs font-semibold tracking-widest uppercase border-y border-white/15">
                           No Squad Players Acquired
                         </div>
-                      ) : squad.length > 5 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 border-t border-white/15">
-                          <div>
-                            {rosterCol1.map((p, idx) => renderPlayerRow(p, idx))}
-                          </div>
-                          <div>
-                            {rosterCol2.map((p, idx) => renderPlayerRow(p, halfSquad + idx))}
-                          </div>
+                      ) : numPosterCols === 1 ? (
+                        <div className="border-t border-white/15 max-w-sm">
+                          {rosterColumns[0].map((p, idx) => renderPlayerRow(p, idx))}
                         </div>
                       ) : (
-                        <div className="border-t border-white/15">
-                          {squad.map((p, idx) => renderPlayerRow(p, idx))}
+                        <div className="grid grid-cols-2 gap-x-4 sm:gap-x-6 lg:gap-x-8 border-t border-white/15">
+                          <div>
+                            {rosterColumns[0].map((p, idx) => renderPlayerRow(p, idx))}
+                          </div>
+                          <div>
+                            {rosterColumns[1].map((p, idx) => renderPlayerRow(p, playersPerCol + idx))}
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {/* Captain Section */}
-                    <div className="pt-2 flex items-center">
-                      {/* Geometric Crown Silhouette matching reference design */}
-                      <svg
-                        className="w-9 h-9 sm:w-11 sm:h-11 shrink-0"
-                        viewBox="0 0 48 48"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                        style={{ color: theme.accent }}
-                      >
-                        <path d="M6 14L13 32H35L42 14L31 22L24 8L17 22L6 14Z" fill="currentColor" />
-                        <rect x="13" y="35" width="22" height="4" rx="1" fill="currentColor" />
-                      </svg>
-
-                      <div className="ml-3 sm:ml-4 min-w-0">
-                        <span
-                          className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] block leading-tight"
-                          style={{ color: theme.accent }}
-                        >
-                          CAPTAIN
-                        </span>
-                        <h2 className="text-xl sm:text-3xl lg:text-4xl font-black text-white uppercase tracking-tight leading-none mt-1 truncate">
-                          {captainName}
-                        </h2>
-                      </div>
-                    </div>
-
                   </div>
 
-                  {/* RIGHT COLUMN: OFFICIAL TEAM LOGO */}
-                  <div className="hidden lg:flex lg:col-span-5 xl:col-span-4 flex-col items-center justify-center relative h-full">
-                    <div className="w-full flex items-center justify-center py-4">
+                  {/* RIGHT: OFFICIAL TEAM LOGO */}
+                  <div className="col-span-5 lg:col-span-5 xl:col-span-5 flex flex-col items-center justify-center h-full relative">
+                    <div className="w-full flex items-center justify-center p-2">
                       {logoSrc ? (
                         theme.logoBackdrop ? (
-                          <div className="w-56 h-56 sm:w-64 sm:h-64 lg:w-72 lg:h-72 rounded-full bg-white shadow-[0_15px_35px_rgba(0,0,0,0.25)] border-2 border-white/80 flex items-center justify-center p-6 sm:p-7 transition-transform duration-500 hover:scale-105">
+                          <div
+                            className={`${
+                              theme.backdropClasses || 'w-[136px] h-[136px] sm:w-[176px] sm:h-[176px] lg:w-[220px] lg:h-[220px] xl:w-[256px] xl:h-[256px]'
+                            } rounded-full bg-white shadow-[0_12px_30px_rgba(0,0,0,0.25)] border-2 border-white/80 flex items-center justify-center p-4 sm:p-5 transition-transform duration-500 hover:scale-105`}
+                          >
                             <img
                               src={logoSrc}
                               alt={team.name}
@@ -1181,7 +1156,9 @@ export default function TeamReveal({ teamId, onBack }) {
                           <img
                             src={logoSrc}
                             alt={team.name}
-                            className="max-w-[240px] xl:max-w-[320px] max-h-[240px] xl:max-h-[320px] object-contain filter drop-shadow-[0_15px_30px_rgba(0,0,0,0.35)] transition-transform duration-500 hover:scale-105"
+                            className={`${
+                              theme.logoClasses || 'max-w-[150px] sm:max-w-[200px] lg:max-w-[250px] xl:max-w-[285px] max-h-[150px] sm:max-h-[200px] lg:max-h-[250px] xl:max-h-[285px]'
+                            } object-contain filter drop-shadow-[0_12px_25px_rgba(0,0,0,0.35)] transition-transform duration-500 hover:scale-105`}
                             onError={(e) => {
                               e.target.style.display = 'none';
                             }}
@@ -1189,7 +1166,7 @@ export default function TeamReveal({ teamId, onBack }) {
                         )
                       ) : (
                         <div
-                          className="text-6xl xl:text-7xl font-black uppercase tracking-wider select-none"
+                          className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-wider select-none"
                           style={{ color: theme.textOnAccent }}
                         >
                           {team.code}
@@ -1200,66 +1177,75 @@ export default function TeamReveal({ teamId, onBack }) {
 
                 </div>
 
-                {/* Mobile Team Logo (fallback for narrow screens) */}
-                <div className="flex lg:hidden items-center justify-center py-3">
-                  {logoSrc && (
-                    theme.logoBackdrop ? (
-                      <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-full bg-white p-3 sm:p-4 shadow-xl border border-white/80 flex items-center justify-center">
-                        <img
-                          src={logoSrc}
-                          alt={team.name}
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <img
-                        src={logoSrc}
-                        alt={team.name}
-                        className="max-w-[150px] sm:max-w-[180px] max-h-[150px] sm:max-h-[180px] object-contain filter drop-shadow-md"
-                      />
-                    )
-                  )}
-                </div>
+                {/* 3. BOTTOM SECTION: CAPTAIN (LEFT) & FRANCHISE TAGLINES (RIGHT) — Moved slightly upward */}
+                <div className="flex items-center justify-between pt-2.5 sm:pt-3.5 pb-2 sm:pb-2.5 border-t border-white/15 shrink-0 gap-4 mb-0.5 sm:mb-1">
+                  {/* Left: Captain Prominent */}
+                  <div className="flex items-center min-w-0">
+                    {/* Geometric Crown Silhouette */}
+                    <svg
+                      className="w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 shrink-0"
+                      viewBox="0 0 48 48"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      style={{ color: theme.accent }}
+                    >
+                      <path d="M6 14L13 32H35L42 14L31 22L24 8L17 22L6 14Z" fill="currentColor" />
+                      <rect x="13" y="35" width="22" height="4" rx="1" fill="currentColor" />
+                    </svg>
 
-                {/* 3. BOTTOM RIGHT TEAM TAGLINE */}
-                <div className="absolute bottom-6 sm:bottom-8 right-6 sm:right-10 text-right pointer-events-none select-none">
-                  <span
-                    className="text-[9px] sm:text-[10px] lg:text-[11px] font-extrabold uppercase tracking-[0.35em] block leading-tight"
-                    style={{ color: theme.textOnAccent, opacity: 0.85 }}
-                  >
-                    {theme.tagline1}
-                  </span>
-                  <span
-                    className="text-[9px] sm:text-[10px] lg:text-[11px] font-extrabold uppercase tracking-[0.35em] block leading-tight mt-0.5"
-                    style={{ color: theme.textOnAccent, opacity: 0.85 }}
-                  >
-                    {theme.tagline2}
-                  </span>
+                    <div className="ml-2.5 sm:ml-3 min-w-0">
+                      <span
+                        className="text-[9px] sm:text-[10px] lg:text-[11px] font-black uppercase tracking-[0.25em] block leading-tight"
+                        style={{ color: theme.accent }}
+                      >
+                        CAPTAIN
+                      </span>
+                      <h2 className="text-base sm:text-xl lg:text-2xl xl:text-3xl font-black text-white uppercase tracking-tight leading-none mt-0.5 truncate">
+                        {captainName}
+                      </h2>
+                    </div>
+                  </div>
+
+                  {/* Right: Franchise Taglines */}
+                  <div className="text-right pointer-events-none select-none shrink-0">
+                    <span
+                      className="text-[8px] sm:text-[9px] lg:text-[10px] font-extrabold uppercase tracking-[0.3em] block leading-tight"
+                      style={{ color: theme.textOnAccent, opacity: 0.85 }}
+                    >
+                      {theme.tagline1}
+                    </span>
+                    <span
+                      className="text-[8px] sm:text-[9px] lg:text-[10px] font-extrabold uppercase tracking-[0.3em] block leading-tight mt-0.5"
+                      style={{ color: theme.textOnAccent, opacity: 0.85 }}
+                    >
+                      {theme.tagline2}
+                    </span>
+                  </div>
                 </div>
 
               </div>
             </div>
 
             {/* Poster Actions: Next Team, Replay & Return to Results */}
-            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-5">
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5 mt-2.5 sm:mt-3 shrink-0">
               {nextTeam ? (
                 <button
                   onClick={handleRevealNextTeam}
-                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-black text-xs sm:text-sm tracking-wide transition flex items-center gap-2 shadow-[0_4px_20px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95 cursor-pointer"
+                  className="px-5 sm:px-6 py-2 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-black text-xs sm:text-sm tracking-wide transition flex items-center gap-2 shadow-[0_4px_20px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95 cursor-pointer"
                 >
                   <span>Reveal Next Team</span>
                   <ChevronRight className="w-4 h-4 stroke-[3]" />
                 </button>
               ) : isAllTeamsRevealed ? (
-                <div className="px-5 py-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold text-xs flex items-center gap-2 shadow">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <div className="px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold text-xs flex items-center gap-1.5 shadow">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>All Teams Revealed</span>
                 </div>
               ) : null}
 
               <button
                 onClick={handleReplay}
-                className="px-5 py-2.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-white font-semibold text-xs border border-zinc-700/80 transition flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95"
+                className="px-4 sm:px-5 py-2 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-white font-semibold text-xs border border-zinc-700/80 transition flex items-center gap-1.5 shadow-lg hover:scale-105 active:scale-95"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Replay Reveal</span>
@@ -1267,7 +1253,7 @@ export default function TeamReveal({ teamId, onBack }) {
 
               <button
                 onClick={handleReturn}
-                className="px-6 py-2.5 rounded-full bg-white hover:bg-zinc-200 text-black font-bold text-xs transition flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95"
+                className="px-5 sm:px-6 py-2 rounded-full bg-white hover:bg-zinc-200 text-black font-bold text-xs transition flex items-center gap-1.5 shadow-lg hover:scale-105 active:scale-95"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Return to Results</span>
@@ -1280,7 +1266,9 @@ export default function TeamReveal({ teamId, onBack }) {
       </main>
 
       {/* Footer Branding */}
-      <footer className="w-full py-2.5 px-6 text-center text-[11px] text-zinc-600 border-t border-zinc-900/80 relative z-20 flex items-center justify-between">
+      <footer className={`w-full py-1.5 sm:py-2 px-6 text-center text-[10px] sm:text-[11px] text-zinc-600 border-t border-zinc-900/80 relative z-20 flex items-center justify-between shrink-0 ${
+        stage === 'poster' ? 'hidden sm:flex' : ''
+      }`}>
         <span>HFPL Premier Cricket Auction 2027</span>
         <span className="font-medium text-zinc-500">Projector Mode &bull; {team.name}</span>
       </footer>

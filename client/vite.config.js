@@ -58,7 +58,7 @@ function iplSongPlugin(command) {
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
   plugins: [react(), iplSongPlugin(command)],
-  assetsInclude: ['**/*.mp3'],
+  assetsInclude: ['**/*.mp3', '**/*.mpeg'],
   server: {
     port: 5173,
     host: true, // Listen on all local IP addresses so projector/phones can view

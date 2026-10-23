@@ -28,6 +28,7 @@ import AudioControl from './AudioControl';
 import SoldStamp from './SoldStamp';
 import hfplLogo from '../logo/HFPL logo-Photoroom.png';
 
+import hornSoundUrl from '../hornsound/hornsoundpp.mpeg';
 import { resolveTeamLogo, resolveImageUrl } from '../utils/media';
 
 // 10 Official HFPL Tournament Rules (5 per page, English + Marathi)
@@ -112,7 +113,6 @@ export default function ProjectorDisplay() {
   const [loading, setLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentView, setCurrentView] = useState('welcome'); // 'welcome' | 'rules' | 'countdown' | 'sets' | 'auction'
-  const [rulesPage, setRulesPage] = useState(1); // 1 | 2
   const [rulesLanguage, setRulesLanguage] = useState('en'); // 'en' | 'mr'
   const [countdown, setCountdown] = useState(5);
   const [isCountingDown, setIsCountingDown] = useState(false);
@@ -127,6 +127,33 @@ export default function ProjectorDisplay() {
   const containerRef = useRef(null);
   const lastCelebratedPlayerIdRef = useRef(null);
   const lastUnsoldPlayerIdRef = useRef(null);
+  const hornAudioRef = useRef(null);
+  const hornPlayedRef = useRef(false);
+  const transitionDoneRef = useRef(false);
+  const currentViewRef = useRef(currentView);
+
+  useEffect(() => {
+    currentViewRef.current = currentView;
+  }, [currentView]);
+
+  useEffect(() => {
+    if (typeof Audio !== 'undefined') {
+      try {
+        const audio = new Audio(hornSoundUrl);
+        audio.preload = 'auto';
+        audio.load();
+        hornAudioRef.current = audio;
+      } catch (e) {
+        console.warn('Horn preload error:', e);
+      }
+    }
+    return () => {
+      if (hornAudioRef.current) {
+        hornAudioRef.current.pause();
+        hornAudioRef.current = null;
+      }
+    };
+  }, []);
 
   // Currency Formatter
   const formatINR = (val) => {
@@ -471,9 +498,79 @@ export default function ProjectorDisplay() {
     }
   };
 
+  // Play countdown completion horn and transition to live auction immediately when finished
+  const playHornAndTransition = () => {
+    if (hornPlayedRef.current) return;
+    hornPlayedRef.current = true;
+
+    let fallbackTimer = null;
+
+    const proceedToAuction = () => {
+      if (transitionDoneRef.current) return;
+      transitionDoneRef.current = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      if (currentViewRef.current === 'countdown') {
+        handleCountdownComplete();
+      }
+    };
+
+    let audio = hornAudioRef.current;
+    if (!audio && typeof Audio !== 'undefined') {
+      try {
+        audio = new Audio(hornSoundUrl);
+        audio.preload = 'auto';
+        hornAudioRef.current = audio;
+      } catch (e) {
+        console.warn('Failed to create horn Audio instance:', e);
+      }
+    }
+
+    if (audio) {
+      audio.currentTime = 0;
+      audio.onended = () => {
+        proceedToAuction();
+      };
+      audio.onerror = (err) => {
+        console.warn('Horn audio playback error:', err);
+        proceedToAuction();
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Horn audio playback promise rejected (autoplay block):', err);
+          proceedToAuction();
+        });
+      }
+
+      // Safety fallback timeout in case audio stalls or cannot fire onended
+      fallbackTimer = setTimeout(() => {
+        proceedToAuction();
+      }, 4000);
+    } else {
+      proceedToAuction();
+    }
+  };
+
   // Handler: Start 5-Second Countdown
   const handleStartAuction = () => {
     if (isCountingDown) return; // Guard against duplicate countdown clicks
+
+    // Initialize and preload horn audio on user gesture to satisfy browser autoplay requirements
+    try {
+      if (!hornAudioRef.current && typeof Audio !== 'undefined') {
+        hornAudioRef.current = new Audio(hornSoundUrl);
+      }
+      if (hornAudioRef.current) {
+        hornAudioRef.current.preload = 'auto';
+        hornAudioRef.current.load();
+      }
+    } catch (e) {
+      console.warn('Horn pre-warm error:', e);
+    }
+
+    hornPlayedRef.current = false;
+    transitionDoneRef.current = false;
     setIsCountingDown(true);
     setCountdown(5);
     setCurrentView('countdown');
@@ -527,12 +624,18 @@ export default function ProjectorDisplay() {
       } else if (countdown === 1) {
         timer = setTimeout(() => {
           setCountdown(0);
-          playCountdownTick(true);
         }, 1000);
       } else if (countdown === 0) {
-        timer = setTimeout(() => {
-          handleCountdownComplete();
-        }, 400);
+        // When countdown reaches 00, immediately play horn while keeping 00 displayed
+        playHornAndTransition();
+      }
+    } else {
+      // If countdown is cancelled or view changes away before completion, pause and reset audio
+      if (hornAudioRef.current) {
+        hornAudioRef.current.pause();
+        hornAudioRef.current.currentTime = 0;
+        hornAudioRef.current.onended = null;
+        hornAudioRef.current.onerror = null;
       }
     }
     return () => {
@@ -573,14 +676,15 @@ export default function ProjectorDisplay() {
   const finalSalePrice = isPlayerSold
     ? (player?.soldPrice || state?.lastSoldDetails?.amount || (soldResultPayload?.playerId === String(player?._id) ? soldResultPayload.amount : null) || state?.currentBid || player?.basePrice || 0)
     : null;
+  const effectiveBasePrice = player ? Math.max(500, player.basePrice || 500) : 0;
   const currentBid = isPlayerSold
     ? finalSalePrice
-    : (state?.currentBid || (player ? player.basePrice : 0));
+    : (state?.currentBid || effectiveBasePrice);
   const currentRound = state?.currentRound;
   const hasLiveBids = Boolean(
     state?.highestBidder ||
     (state?.bidHistory && state.bidHistory.length > 0) ||
-    (state?.currentBid && state.currentBid > (player?.basePrice || 0))
+    (state?.currentBid && state.currentBid > effectiveBasePrice)
   );
 
   // Maintain card flip state for SOLD players without firing audio or confetti on page reload
@@ -667,10 +771,7 @@ export default function ProjectorDisplay() {
           {currentView === 'auction' && (
             <>
               <button
-                onClick={() => {
-                  setRulesPage(1);
-                  setCurrentView('rules');
-                }}
+                onClick={() => setCurrentView('rules')}
                 className="text-xs text-zinc-400 hover:text-white px-2.5 sm:px-3 py-1.5 rounded-full hover:bg-zinc-900 transition flex items-center gap-1.5"
                 title="Rules"
               >
@@ -719,10 +820,7 @@ export default function ProjectorDisplay() {
                 </button>
               )}
               <button
-                onClick={() => {
-                  setRulesPage(1);
-                  setCurrentView('rules');
-                }}
+                onClick={() => setCurrentView('rules')}
                 className="text-xs text-zinc-300 hover:text-white px-2.5 sm:px-3 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-800 hover:border-zinc-700 transition flex items-center gap-1.5"
               >
                 <BookOpen className="w-3.5 h-3.5 text-[#d4af37]" />
@@ -817,10 +915,7 @@ export default function ProjectorDisplay() {
 
               {/* Secondary: VIEW AUCTION RULES */}
               <button
-                onClick={() => {
-                  setRulesPage(1);
-                  setCurrentView('rules');
-                }}
+                onClick={() => setCurrentView('rules')}
                 className="w-full sm:w-auto px-7 py-4 rounded-full bg-zinc-900/80 border border-zinc-700 hover:border-[#d4af37]/70 hover:bg-zinc-800 text-zinc-300 hover:text-white font-semibold text-sm sm:text-base transition flex items-center justify-center gap-2.5 shadow-md hover:scale-[1.02] active:scale-[0.98]"
               >
                 <BookOpen className="w-4 h-4 text-[#d4af37]" />
@@ -842,12 +937,12 @@ export default function ProjectorDisplay() {
               <div className="w-52 h-52 sm:w-64 sm:h-64 rounded-full bg-gradient-to-b from-zinc-900 to-zinc-950 border-2 border-[#d4af37]/50 flex items-center justify-center shadow-2xl relative overflow-hidden">
                 <div className="absolute inset-3 rounded-full border border-zinc-800/80 pointer-events-none" />
 
-                {/* Animated Number: 5 -> 4 -> 3 -> 2 -> 1 */}
+                {/* Animated Number: 5 -> 4 -> 3 -> 2 -> 1 -> 00 */}
                 <span
                   key={countdown}
                   className="text-8xl sm:text-9xl font-black text-white tracking-tight animate-countdown-pop drop-shadow-2xl"
                 >
-                  {countdown > 0 ? countdown : '0'}
+                  {countdown > 0 ? countdown : '00'}
                 </span>
               </div>
             </div>
@@ -865,7 +960,7 @@ export default function ProjectorDisplay() {
         )}
 
         {/* ============================================================== */}
-        {/* VIEW C: AUCTION RULES SCREEN (2 Pages, 5 Rules Each)            */}
+        {/* VIEW C: AUCTION RULES SCREEN (Single Scrollable Page)          */}
         {/* ============================================================== */}
         {currentView === 'rules' && !isRoundCompleted && !isAuctionCompleted && (
           <div className="w-full max-w-5xl flex flex-col justify-between animate-fade-in my-auto h-full max-h-[85vh] py-2">
@@ -889,7 +984,7 @@ export default function ProjectorDisplay() {
                 </p>
               </div>
 
-              {/* English | Marathi Language Toggle + Page Indicator Pill */}
+              {/* English | Marathi Language Toggle + Rules Count Pill */}
               <div className="flex items-center gap-2 ml-auto sm:ml-0">
                 <div className="inline-flex items-center rounded-full bg-zinc-900 border border-zinc-700/80 p-0.5 shadow-inner">
                   <button
@@ -917,14 +1012,14 @@ export default function ProjectorDisplay() {
                 </div>
 
                 <div className="px-2.5 sm:px-3 py-1 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/40 text-[#d4af37] text-[11px] sm:text-xs font-bold tracking-wider uppercase">
-                  PAGE {rulesPage} OF 2
+                  10 RULES
                 </div>
               </div>
             </div>
 
-            {/* 5 Rules for Selected Page (Language Toggled) */}
-            <div className="flex-1 flex flex-col justify-around py-3 sm:py-4 gap-2.5 sm:gap-3 overflow-y-auto">
-              {(rulesPage === 1 ? AUCTION_RULES.slice(0, 5) : AUCTION_RULES.slice(5, 10)).map((rule) => (
+            {/* Complete Rules in One Continuous Page (Scrollable vertically when content exceeds height) */}
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-1.5 sm:pr-2.5 py-3 sm:py-4 space-y-2.5 sm:space-y-3">
+              {AUCTION_RULES.map((rule) => (
                 <div
                   key={rule.number}
                   className="p-3 sm:p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/80 hover:border-zinc-700/80 transition flex items-start gap-3.5 sm:gap-4 shadow-sm"
@@ -947,61 +1042,24 @@ export default function ProjectorDisplay() {
               ))}
             </div>
 
-            {/* Rules Navigation Footer */}
-            <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80 shrink-0 gap-2">
-              {/* Previous Button */}
+            {/* Rules Action Footer: Back to Home & Let's Begin */}
+            <div className="flex items-center justify-between pt-3 border-t border-zinc-800/80 shrink-0 gap-3">
               <button
-                onClick={() => setRulesPage(1)}
-                disabled={rulesPage === 1}
-                className="px-3.5 sm:px-5 py-2 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-200 hover:text-white hover:border-zinc-500 font-semibold text-xs sm:text-sm transition flex items-center gap-1.5 disabled:opacity-30 disabled:pointer-events-none"
+                onClick={() => setCurrentView('welcome')}
+                className="px-3.5 sm:px-5 py-2 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 font-semibold text-xs sm:text-sm transition flex items-center gap-1.5"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span className="hidden min-[380px]:inline">PREVIOUS</span>
-                <span className="min-[380px]:hidden">PREV</span>
+                <span className="hidden sm:inline">BACK TO HOME</span>
+                <span className="sm:hidden">HOME</span>
               </button>
 
-              {/* Interactive Page Dots */}
-              <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-zinc-400">
-                <span
-                  onClick={() => setRulesPage(1)}
-                  className={`cursor-pointer px-2.5 sm:px-3 py-1 rounded-full transition ${
-                    rulesPage === 1
-                      ? 'bg-[#d4af37] text-black font-extrabold shadow-sm'
-                      : 'bg-zinc-800 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <span className="hidden sm:inline">PAGE </span>1
-                </span>
-                <span
-                  onClick={() => setRulesPage(2)}
-                  className={`cursor-pointer px-2.5 sm:px-3 py-1 rounded-full transition ${
-                    rulesPage === 2
-                      ? 'bg-[#d4af37] text-black font-extrabold shadow-sm'
-                      : 'bg-zinc-800 text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <span className="hidden sm:inline">PAGE </span>2
-                </span>
-              </div>
-
-              {/* Next / Let's Begin Button */}
-              {rulesPage === 1 ? (
-                <button
-                  onClick={() => setRulesPage(2)}
-                  className="px-4 sm:px-6 py-2 rounded-full bg-zinc-900 border border-zinc-700 hover:border-zinc-500 text-white font-semibold text-xs sm:text-sm transition flex items-center gap-1.5"
-                >
-                  <span>NEXT</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  onClick={handleStartAuction}
-                  className="px-4 sm:px-6 py-2 rounded-full bg-white text-zinc-950 hover:bg-zinc-200 font-extrabold text-xs sm:text-sm transition flex items-center gap-1.5 shadow-md hover:scale-[1.02]"
-                >
-                  <span>LET'S BEGIN</span>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                </button>
-              )}
+              <button
+                onClick={handleStartAuction}
+                className="px-5 sm:px-7 py-2 rounded-full bg-gradient-to-r from-amber-400 to-[#d4af37] text-zinc-950 hover:brightness-110 font-black text-xs sm:text-sm tracking-wide transition flex items-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 cursor-pointer"
+              >
+                <span>LET'S BEGIN AUCTION</span>
+                <Play className="w-3.5 h-3.5 fill-current" />
+              </button>
             </div>
           </div>
         )}
@@ -1526,7 +1584,7 @@ export default function ProjectorDisplay() {
                             <span className={`${
                               isFullscreen ? 'text-3xl sm:text-5xl lg:text-6xl xl:text-7xl' : 'text-xl min-[380px]:text-2xl sm:text-4xl lg:text-5xl'
                             } font-black text-white tracking-tight truncate`}>
-                              {formatINR(player.basePrice)}
+                              {formatINR(effectiveBasePrice)}
                             </span>
                           </div>
                         </div>
@@ -1584,7 +1642,7 @@ export default function ProjectorDisplay() {
                                     bidFlashed ? 'scale-105 filter brightness-125' : ''
                                   }`}
                                 >
-                                  {hasLiveBids ? formatINR(currentBid) : formatINR(player.basePrice)}
+                                  {hasLiveBids ? formatINR(currentBid) : formatINR(effectiveBasePrice)}
                                 </span>
                               </div>
 
@@ -1593,7 +1651,7 @@ export default function ProjectorDisplay() {
                                 <div className={`mt-1 sm:mt-1.5 ${
                                   isFullscreen ? 'text-sm sm:text-base' : 'text-[11px] sm:text-xs'
                                 } text-zinc-400 font-medium truncate`}>
-                                  Opening bid: {formatINR(player.basePrice)}
+                                  Opening bid: {formatINR(effectiveBasePrice)}
                                 </div>
                               )}
                             </div>

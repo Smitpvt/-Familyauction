@@ -27,8 +27,8 @@ const playerSchema = new mongoose.Schema({
   basePrice: {
     type: Number,
     required: true,
-    default: 200,
-    min: 0
+    default: 500,
+    min: 500
   },
   description: {
     type: String,

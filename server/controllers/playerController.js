@@ -101,7 +101,7 @@ exports.createPlayer = async (req, res) => {
       battingStyle: battingStyle || 'Right Hand Bat',
       bowlingStyle: bowlingStyle || 'Right Arm Medium',
       photo: photo || '',
-      basePrice: basePrice !== undefined ? Number(basePrice) : 200,
+      basePrice: basePrice !== undefined ? Math.max(500, Number(basePrice)) : 500,
       description: description || '',
       stats: stats || { matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0 },
       roundId: roundId || null,
@@ -166,7 +166,7 @@ exports.updatePlayer = async (req, res) => {
     if (battingStyle !== undefined) player.battingStyle = battingStyle;
     if (bowlingStyle !== undefined) player.bowlingStyle = bowlingStyle;
     if (photo !== undefined) player.photo = photo;
-    if (basePrice !== undefined) player.basePrice = Number(basePrice);
+    if (basePrice !== undefined) player.basePrice = Math.max(500, Number(basePrice));
     if (description !== undefined) player.description = description;
     if (stats) player.stats = { ...player.stats, ...stats };
     if (roundId !== undefined) player.roundId = roundId || null;
@@ -496,7 +496,7 @@ exports.bulkImportPlayers = async (req, res) => {
         battingStyle: p.battingStyle || 'Right Hand Bat',
         bowlingStyle: p.bowlingStyle || 'Right Arm Medium',
         photo: p.photo || '',
-        basePrice: Number(p.basePrice) || 200,
+        basePrice: Math.max(500, Number(p.basePrice) || 500),
         description: p.description || '',
         stats: {
           matches: Number(p.matches) || 0,
