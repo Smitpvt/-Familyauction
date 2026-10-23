@@ -172,6 +172,20 @@
   animation: dramaticEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* 3-Second Player Reveal Progress Bar */
+@keyframes playerRevealProgress3s {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.animate-progress-3s {
+  animation: playerRevealProgress3s 3s linear forwards;
+}
+
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {

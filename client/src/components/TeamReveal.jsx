@@ -15,11 +15,16 @@ import {
   User,
   Users,
   CheckCircle2,
-  Sparkles
+  Sparkles,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { teamsAPI, resultsAPI } from '../services/api';
 import { resolveTeamLogo, resolveImageUrl } from '../utils/media';
 import hfplLogo from '../logo/HFPL logo-Photoroom.png';
+
+// Background IPL anthem audio asset from client/src/iplsong
+import iplSongUrl from 'virtual:ipl-song';
 
 // Clean art-directed franchise poster themes (solid colors, 2-3 hues, geometric composition)
 const getTeamPosterTheme = (team) => {
@@ -93,7 +98,10 @@ const getTeamPosterTheme = (team) => {
 };
 
 export default function TeamReveal({ teamId, onBack }) {
+  const [currentTeamId, setCurrentTeamId] = useState(teamId);
   const [team, setTeam] = useState(null);
+  const [allTeams, setAllTeams] = useState([]);
+  const [revealedTeamIds, setRevealedTeamIds] = useState(() => (teamId ? [String(teamId)] : []));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -105,7 +113,78 @@ export default function TeamReveal({ teamId, onBack }) {
   const [isPaused, setIsPaused] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Animation & Audio State
+  const [coinFlipped, setCoinFlipped] = useState(false);
+  const [revealKey, setRevealKey] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const audioRef = useRef(null);
   const containerRef = useRef(null);
+
+  // Sync external teamId prop if changed
+  useEffect(() => {
+    if (teamId && String(teamId) !== String(currentTeamId)) {
+      setCurrentTeamId(teamId);
+      setRevealedTeamIds((prev) => (prev.includes(String(teamId)) ? prev : [...prev, String(teamId)]));
+    }
+  }, [teamId]);
+
+  // Background IPL Anthem Audio Controller
+  useEffect(() => {
+    if (!iplSongUrl) return;
+
+    // Single persistent audio instance across the entire reveal experience
+    const audio = new Audio(iplSongUrl);
+    audio.loop = true;
+    audio.volume = 0.75;
+    audioRef.current = audio;
+
+    // Start playing as soon as reveal begins
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.log('[TeamReveal] Background music autoplay blocked by browser policy; awaiting user interaction:', err);
+      });
+    }
+
+    // Interaction fallback: Start playback on first click, keypress, or touch
+    const handleGesture = () => {
+      if (audioRef.current && audioRef.current.paused && !isMuted) {
+        audioRef.current.play().catch(() => {});
+      }
+      window.removeEventListener('click', handleGesture);
+      window.removeEventListener('keydown', handleGesture);
+      window.removeEventListener('touchstart', handleGesture);
+    };
+
+    window.addEventListener('click', handleGesture);
+    window.addEventListener('keydown', handleGesture);
+    window.addEventListener('touchstart', handleGesture);
+
+    return () => {
+      window.removeEventListener('click', handleGesture);
+      window.removeEventListener('keydown', handleGesture);
+      window.removeEventListener('touchstart', handleGesture);
+      audio.pause();
+      audio.currentTime = 0;
+      audioRef.current = null;
+    };
+  }, []);
+
+  // Audio mute/unmute control
+  const toggleMute = () => {
+    if (audioRef.current) {
+      if (isMuted) {
+        audioRef.current.muted = false;
+        audioRef.current.play().catch(() => {});
+        setIsMuted(false);
+      } else {
+        audioRef.current.muted = true;
+        setIsMuted(true);
+      }
+    } else {
+      setIsMuted((prev) => !prev);
+    }
+  };
 
   // Currency formatter
   const formatINR = (val) => {
@@ -116,8 +195,12 @@ export default function TeamReveal({ teamId, onBack }) {
     }).format(val || 0);
   };
 
-  // Safe navigation back to results
+  // Safe navigation back to results (stops music and cleans up)
   const handleReturn = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
     if (onBack) {
       onBack();
     } else {
@@ -145,7 +228,7 @@ export default function TeamReveal({ teamId, onBack }) {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  // 1. Fetch team data and squad strictly for this team ID
+  // 1. Fetch team data, squad for currentTeamId, and full list of teams
   useEffect(() => {
     let isMounted = true;
 
@@ -153,7 +236,8 @@ export default function TeamReveal({ teamId, onBack }) {
       setLoading(true);
       setError(null);
 
-      if (!teamId) {
+      const targetId = currentTeamId || teamId;
+      if (!targetId) {
         setError('No team ID specified for reveal.');
         setLoading(false);
         return;
@@ -161,47 +245,54 @@ export default function TeamReveal({ teamId, onBack }) {
 
       try {
         let loadedTeam = null;
+        let loadedAllTeams = [];
 
-        // Primary: getTeamById
+        // Primary: Results summary contains all teams and their sold squads
         try {
-          const res = await teamsAPI.getById(teamId);
-          if (res.data?.success && res.data.team) {
-            loadedTeam = res.data.team;
+          const summaryRes = await resultsAPI.getSummary();
+          if (summaryRes.data?.success && summaryRes.data.summary?.teamSquads) {
+            loadedAllTeams = summaryRes.data.summary.teamSquads;
+            const matched = loadedAllTeams.find(
+              (item) => String(item._id || item.team?._id) === String(targetId)
+            );
+            if (matched) {
+              loadedTeam = {
+                ...(matched.team || matched),
+                squad: matched.players || matched.team?.players || []
+              };
+            }
           }
         } catch (err) {
-          console.warn('[TeamReveal] Primary getById lookup failed, falling back:', err);
+          console.warn('[TeamReveal] Primary results summary lookup failed:', err);
         }
 
-        // Fallback 1: Results summary team squads
+        // Secondary fallback 1: teamsAPI.getById
         if (!loadedTeam) {
           try {
-            const summaryRes = await resultsAPI.getSummary();
-            if (summaryRes.data?.success && summaryRes.data.summary?.teamSquads) {
-              const matched = summaryRes.data.summary.teamSquads.find(
-                (item) => String(item._id || item.team?._id) === String(teamId)
-              );
-              if (matched) {
-                loadedTeam = {
-                  ...(matched.team || matched),
-                  squad: matched.players || matched.team?.players || []
-                };
-              }
+            const res = await teamsAPI.getById(targetId);
+            if (res.data?.success && res.data.team) {
+              loadedTeam = res.data.team;
             }
           } catch (err) {
-            console.warn('[TeamReveal] Results summary fallback lookup failed:', err);
+            console.warn('[TeamReveal] Primary getById lookup failed, falling back:', err);
           }
         }
 
-        // Fallback 2: teamsAPI.getAll()
-        if (!loadedTeam) {
+        // Secondary fallback 2: teamsAPI.getAll()
+        if (loadedAllTeams.length === 0 || !loadedTeam) {
           try {
             const allTeamsRes = await teamsAPI.getAll();
             if (allTeamsRes.data?.success && allTeamsRes.data.teams) {
-              const matched = allTeamsRes.data.teams.find(
-                (item) => String(item._id) === String(teamId)
-              );
-              if (matched) {
-                loadedTeam = matched;
+              if (loadedAllTeams.length === 0) {
+                loadedAllTeams = allTeamsRes.data.teams;
+              }
+              if (!loadedTeam) {
+                const matched = allTeamsRes.data.teams.find(
+                  (item) => String(item._id) === String(targetId)
+                );
+                if (matched) {
+                  loadedTeam = matched;
+                }
               }
             }
           } catch (err) {
@@ -211,8 +302,12 @@ export default function TeamReveal({ teamId, onBack }) {
 
         if (!isMounted) return;
 
+        if (loadedAllTeams.length > 0) {
+          setAllTeams(loadedAllTeams);
+        }
+
         if (!loadedTeam) {
-          setError(`Team with ID "${teamId}" could not be found.`);
+          setError(`Team with ID "${targetId}" could not be found.`);
           setLoading(false);
           return;
         }
@@ -237,10 +332,63 @@ export default function TeamReveal({ teamId, onBack }) {
 
     fetchTeam();
     return () => { isMounted = false; };
-  }, [teamId]);
+  }, [currentTeamId, teamId]);
 
-  // Reset and restart reveal sequence
+  // Determine next unrevealed team in sequential order
+  const getNextUnrevealedTeam = () => {
+    if (!allTeams || allTeams.length === 0) return null;
+    const targetId = String(currentTeamId || teamId);
+    const currentIndex = allTeams.findIndex(
+      (item) => String(item._id || item.team?._id) === targetId
+    );
+
+    // Search cyclically starting from the team right after the current one
+    const startIndex = currentIndex >= 0 ? currentIndex : 0;
+    for (let i = 1; i <= allTeams.length; i++) {
+      const candidateIndex = (startIndex + i) % allTeams.length;
+      const candidate = allTeams[candidateIndex];
+      const candId = String(candidate._id || candidate.team?._id);
+      if (!revealedTeamIds.includes(candId) && candId !== targetId) {
+        return candidate;
+      }
+    }
+    return null;
+  };
+
+  const nextTeam = getNextUnrevealedTeam();
+  const isAllTeamsRevealed = allTeams.length > 0 && (!nextTeam || revealedTeamIds.length >= allTeams.length);
+
+  // Reveal next team flow
+  const handleRevealNextTeam = () => {
+    const candidate = getNextUnrevealedTeam();
+    if (!candidate) return;
+
+    const nextId = String(candidate._id || candidate.team?._id);
+    setRevealedTeamIds((prev) => (prev.includes(nextId) ? prev : [...prev, nextId]));
+    setCurrentTeamId(nextId);
+
+    // Update browser URL without triggering full page reload
+    window.history.replaceState({}, '', `/reveal/${nextId}`);
+
+    // Restart presentation sequence for the next team
+    setCoinFlipped(false);
+    setRevealKey((k) => k + 1);
+    setStage('intro');
+    setIntroPhase(0);
+    setPlayerIndex(0);
+    setIsPaused(false);
+  };
+
+  // Reset and restart reveal sequence for current team
   const handleReplay = () => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      if (!isMuted) {
+        audioRef.current.play().catch(() => {});
+      }
+    }
+    setCoinFlipped(false);
+    setRevealKey((k) => k + 1);
     setStage('intro');
     setIntroPhase(0);
     setPlayerIndex(0);
@@ -284,6 +432,11 @@ export default function TeamReveal({ teamId, onBack }) {
   useEffect(() => {
     if (loading || !team || stage !== 'intro' || isPaused) return;
 
+    // Coin flip completes at 4.6s (animation duration is 4.5s)
+    const tCoin = setTimeout(() => {
+      setCoinFlipped(true);
+    }, 4600);
+
     // Phase 0 -> Phase 1: At 4.8s, show "AND THE TEAM IS..."
     const t1 = setTimeout(() => {
       setIntroPhase(1);
@@ -301,27 +454,28 @@ export default function TeamReveal({ teamId, onBack }) {
     }, 8200);
 
     return () => {
+      clearTimeout(tCoin);
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
     };
   }, [stage, loading, team, isPaused]);
 
-  // Stage 2 Player reveal timer choreography: 2 seconds per player
+  // Stage 2 Player reveal timer choreography: Approximately 3 seconds per player
   useEffect(() => {
     if (loading || !team || stage !== 'players' || isPaused) return;
 
     const squad = team.squad || [];
 
-    // If team has no players, display graceful zero-player notice for 2s then move to captain
+    // If team has no players, display graceful zero-player notice for 3s then move to captain
     if (squad.length === 0) {
       const t = setTimeout(() => {
         setStage('captain');
-      }, 2000);
+      }, 3000);
       return () => clearTimeout(t);
     }
 
-    // Keep each player visible for 2 seconds before revealing the next player
+    // Keep each player visible for 3 seconds before smoothly transitioning to next player
     const t = setTimeout(() => {
       if (playerIndex < squad.length - 1) {
         setPlayerIndex((prev) => prev + 1);
@@ -329,7 +483,7 @@ export default function TeamReveal({ teamId, onBack }) {
         // All players revealed -> transition to Stage 3 Captain reveal
         setStage('captain');
       }
-    }, 2000);
+    }, 3000);
 
     return () => clearTimeout(t);
   }, [stage, playerIndex, loading, team, isPaused]);
@@ -488,6 +642,19 @@ export default function TeamReveal({ teamId, onBack }) {
 
         {/* Action Controls */}
         <div className="pointer-events-auto flex items-center gap-2">
+          {/* Audio Mute/Unmute Toggle */}
+          <button
+            onClick={toggleMute}
+            className="p-1.5 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/60 backdrop-blur-md transition shadow-lg hover:text-white"
+            title={isMuted ? 'Unmute IPL Anthem' : 'Mute IPL Anthem'}
+          >
+            {isMuted ? (
+              <VolumeX className="w-3.5 h-3.5 text-zinc-500" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5 text-amber-400" />
+            )}
+          </button>
+
           {stage === 'players' && (
             <button
               onClick={() => setIsPaused((prev) => !prev)}
@@ -526,12 +693,17 @@ export default function TeamReveal({ teamId, onBack }) {
                 style={{ backgroundColor: teamColor }}
               />
 
-              {/* The Spinning 3D Coin */}
+              {/* The Spinning 3D Coin - Plays EXACTLY ONCE per team reveal */}
               <div
-                className="w-48 h-48 sm:w-60 sm:h-60 rounded-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black p-3 sm:p-4 border-4 sm:border-[6px] shadow-2xl flex items-center justify-center animate-coin-flip relative overflow-hidden"
+                key={`coin-${currentTeamId || team._id}-${revealKey}`}
+                onAnimationEnd={() => setCoinFlipped(true)}
+                className={`w-48 h-48 sm:w-60 sm:h-60 rounded-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black p-3 sm:p-4 border-4 sm:border-[6px] shadow-2xl flex items-center justify-center relative overflow-hidden ${
+                  !coinFlipped ? 'animate-coin-flip' : ''
+                }`}
                 style={{
                   borderColor: teamColor || '#f59e0b',
-                  boxShadow: `0 0 50px ${teamColor}40, inset 0 0 25px rgba(0,0,0,0.8)`
+                  boxShadow: `0 0 50px ${teamColor}40, inset 0 0 25px rgba(0,0,0,0.8)`,
+                  transform: coinFlipped ? 'perspective(1400px) rotateY(1800deg) scale(1)' : undefined
                 }}
               >
                 {/* Metallic Coin Rim Texture & Specular Glint */}
@@ -672,12 +844,12 @@ export default function TeamReveal({ teamId, onBack }) {
                     </div>
                   </div>
 
-                  {/* Player Details */}
-                  <div className="flex-1 flex flex-col justify-between text-center sm:text-left min-w-0 w-full">
+                  {/* Player Details - Focused entirely on the player (No prices or financial info) */}
+                  <div className="flex-1 flex flex-col justify-between text-center sm:text-left min-w-0 w-full py-1">
                     <div>
-                      {/* Category & Badge */}
-                      <div className="flex items-center justify-center sm:justify-start gap-2 mb-2 flex-wrap">
-                        <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-wider">
+                      {/* Category & Designation Badges */}
+                      <div className="flex items-center justify-center sm:justify-start gap-2 mb-2.5 flex-wrap">
+                        <span className="px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-wider">
                           {currentPlayer.category || 'All-rounder'}
                         </span>
                         {currentPlayer.battingStyle && (
@@ -692,48 +864,37 @@ export default function TeamReveal({ teamId, onBack }) {
                         )}
                       </div>
 
-                      {/* Player Full Name */}
-                      <h2 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight mb-2 truncate">
+                      {/* Player Full Name (Bold & Heroic) */}
+                      <h2 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight mb-2.5 truncate">
                         {currentPlayer.name}
                       </h2>
 
                       {/* Team Association pill */}
-                      <div className="flex items-center justify-center sm:justify-start gap-2 text-xs text-zinc-400">
-                        <span>Sold to:</span>
+                      <div className="flex items-center justify-center sm:justify-start gap-2 text-xs sm:text-sm text-zinc-400">
+                        <span>Squad Member &bull;</span>
                         <span className="text-white font-bold">{team.name}</span>
-                        <span>({team.code})</span>
+                        <span className="font-semibold" style={{ color: teamColor }}>({team.code})</span>
                       </div>
                     </div>
 
-                    {/* Final Sold Price Box */}
-                    <div className="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] sm:text-xs uppercase tracking-widest text-zinc-400 font-semibold block">
-                          Final Purchase Price
-                        </span>
-                        <span className="text-2xl sm:text-4xl font-black text-emerald-400 tracking-tight">
-                          {formatINR(currentPlayer.soldPrice)}
-                        </span>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="text-[10px] sm:text-xs uppercase tracking-widest text-zinc-500 block">
-                          Base Price
-                        </span>
-                        <span className="text-sm sm:text-base font-semibold text-zinc-300">
-                          {formatINR(currentPlayer.basePrice || 200)}
-                        </span>
-                      </div>
+                    {/* Official Squad Player Designation Bar (No price / financial info) */}
+                    <div className="mt-6 pt-4 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+                      <span className="text-[11px] uppercase tracking-widest text-zinc-500 font-semibold">
+                        HFPL 2027 Squad Roster
+                      </span>
+                      <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold text-[11px] uppercase tracking-wider">
+                        {currentPlayer.category || 'Official Player'}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* 2-Second Timer Progress Bar Indicator */}
+                {/* 3-Second Timer Progress Bar Indicator */}
                 {!isPaused && (
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-zinc-800">
                     <div
                       key={`timer-${playerIndex}`}
-                      className="h-full bg-amber-400 transition-all duration-[2000ms] ease-linear w-full origin-left animate-[progress_2s_linear]"
+                      className="h-full bg-amber-400 animate-progress-3s"
                     />
                   </div>
                 )}
@@ -823,19 +984,19 @@ export default function TeamReveal({ teamId, onBack }) {
                     </p>
                   </div>
 
-                  {/* Team Stats Summary */}
+                  {/* Team Squad Summary (No purse or auction financials) */}
                   <div className="mt-6 pt-4 border-t border-zinc-800 flex items-center justify-between text-xs sm:text-sm">
                     <div>
                       <span className="text-zinc-500 uppercase tracking-widest text-[10px] block">Total Squad</span>
                       <span className="font-bold text-white text-base sm:text-lg">{squad.length} Players</span>
                     </div>
                     <div>
-                      <span className="text-zinc-500 uppercase tracking-widest text-[10px] block">Purse Spent</span>
-                      <span className="font-bold text-emerald-400 text-base sm:text-lg">{formatINR(team.totalSpent)}</span>
+                      <span className="text-zinc-500 uppercase tracking-widest text-[10px] block">Franchise</span>
+                      <span className="font-bold text-white text-base sm:text-lg">{team.code}</span>
                     </div>
                     <div>
-                      <span className="text-zinc-500 uppercase tracking-widest text-[10px] block">Remaining</span>
-                      <span className="font-bold text-white text-base sm:text-lg">{formatINR(team.remainingPurse)}</span>
+                      <span className="text-zinc-500 uppercase tracking-widest text-[10px] block">Tournament</span>
+                      <span className="font-bold text-amber-400 text-base sm:text-lg">HFPL 2027</span>
                     </div>
                   </div>
                 </div>
@@ -1079,8 +1240,23 @@ export default function TeamReveal({ teamId, onBack }) {
               </div>
             </div>
 
-            {/* Poster Actions: Replay & Return to Results */}
-            <div className="flex items-center justify-center gap-3 sm:gap-4 mt-5">
+            {/* Poster Actions: Next Team, Replay & Return to Results */}
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-5">
+              {nextTeam ? (
+                <button
+                  onClick={handleRevealNextTeam}
+                  className="px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-black text-xs sm:text-sm tracking-wide transition flex items-center gap-2 shadow-[0_4px_20px_rgba(245,158,11,0.4)] hover:scale-105 active:scale-95 cursor-pointer"
+                >
+                  <span>Reveal Next Team</span>
+                  <ChevronRight className="w-4 h-4 stroke-[3]" />
+                </button>
+              ) : isAllTeamsRevealed ? (
+                <div className="px-5 py-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold text-xs flex items-center gap-2 shadow">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>All Teams Revealed</span>
+                </div>
+              ) : null}
+
               <button
                 onClick={handleReplay}
                 className="px-5 py-2.5 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-white font-semibold text-xs border border-zinc-700/80 transition flex items-center gap-2 shadow-lg hover:scale-105 active:scale-95"
