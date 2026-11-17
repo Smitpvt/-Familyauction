@@ -4,7 +4,6 @@ import AdminPanel from './components/AdminPanel';
 import AdminLogin from './components/AdminLogin';
 import ResultsView from './components/ResultsView';
 import TeamReveal from './components/TeamReveal';
-import JerseyReveal from './components/JerseyReveal';
 import { Tv, Shield, ArrowRight, Trophy } from 'lucide-react';
 import { authAPI } from './services/api';
 import hfplLogo from './logo/HFPL logo-Photoroom.png';
@@ -90,12 +89,7 @@ export default function App() {
     return <AdminPanel onLogout={handleLogout} />;
   }
 
-  // Route 5: Cinematic 3D Jersey Reveal
-  if (currentPath === '/jersey') {
-    return <JerseyReveal onBack={() => navigateTo('/')} />;
-  }
-
-  // Route 6: Home Hub (Minimal Black-and-White Family Auction Portal)
+  // Route 5: Home Hub (Minimal Black-and-White Family Auction Portal)
   return (
     <div className="min-h-screen bg-[#0c0d0e] text-white flex flex-col justify-between font-sans selection:bg-zinc-800">
       {/* Top Header */}
