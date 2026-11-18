@@ -1,116 +1,100 @@
 <!doctype html>
 <html>
-
 <head>
   <meta charset="utf-8" />
-  <title>HFPL jersey preview renderer</title>
+  <title>HFPL jersey QA renderer</title>
   <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&display=swap" rel="stylesheet">
-  <style>
-    html,
-    body {
-      margin: 0;
-      background: #15161a;
-      overflow: hidden
-    }
-
-    canvas {
-      display: block
-    }
-  </style>
+  <style>html,body{margin:0;background:#07080a;overflow:hidden}canvas{display:block}</style>
 </head>
-
 <body>
-  <!-- Dev-only render harness used by render_previews.mjs.
-     /tools/jersey/preview.html?team=sherle-warriors&yaw=180&pitch=5&name=SHRI&number=21 -->
-  <script type="module">
-    import * as THREE from 'three';
-    import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-    import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-    import { updatePlayerDetails } from '/src/jersey/playerDetails.js';
+<!-- Dev-only QA harness used by render_previews.mjs. Mirrors the /jersey showcase scene
+     (tone mapping, local studio environment, lights, camera, captain-name lettering).
+     /tools/jersey/preview.html?team=sherle&save=http://localhost:5199&views=front:0,back:180 -->
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { applyPlayerInfo, cloneJersey } from '/src/utils/jerseyPlayerInfo.js';
 
-    const q = new URLSearchParams(location.search);
-    const team = q.get('team') || 'ratnagiri-royals';
-    const yaw = THREE.MathUtils.degToRad(+(q.get('yaw') || 0));
-    const pitch = THREE.MathUtils.degToRad(+(q.get('pitch') || 4));
-    const dist = +(q.get('dist') || 2.35);
-    const W = +(q.get('w') || 900), H = +(q.get('h') || 1000);
+const CAPTAIN = { sherle: 'SHRI', ratnagiri: 'SAGAR', malgund: 'RAJESH', kotwade: 'VIJAY' };
+const q = new URLSearchParams(location.search);
+const team = q.get('team') || 'sherle';
+const W = +(q.get('w') || 900), H = +(q.get('h') || 900);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    renderer.setSize(W, H);
-    renderer.setPixelRatio(1);
-    renderer.toneMapping = THREE.NeutralToneMapping;
-    renderer.toneMappingExposure = 1.0;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#1a1b20');
-    const pm = new THREE.PMREMGenerator(renderer);
-    scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environmentIntensity = 0.55;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#07080a');
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.6;
+scene.add(new THREE.AmbientLight('#ffffff', 0.25));
+const key = new THREE.DirectionalLight('#ffffff', 1.5);
+key.position.set(2.0, 2.5, 2.8);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.normalBias = 0.01;
+key.shadow.bias = -0.0002;
+scene.add(key);
+for (const [p, i, c] of [[[-2.2, 1.8, -1.8], 0.9, '#ffffff'], [[0, 2.8, -2.5], 0.5, '#ffffff'], [[-1.5, -0.2, 2.0], 0.25, '#eef4ff']]) {
+  const l = new THREE.DirectionalLight(c, i); l.position.set(...p); scene.add(l);
+}
 
-    const key = new THREE.DirectionalLight('#fff6ee', 1.6);
-    key.position.set(1.2, 2.2, 2.6);
-    key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
-    key.shadow.camera.left = key.shadow.camera.bottom = -0.8;
-    key.shadow.camera.right = key.shadow.camera.top = 0.8;
-    key.shadow.bias = -0.0004;
-    key.shadow.normalBias = 0.01;
-    scene.add(key);
-    const back = new THREE.DirectionalLight('#ffffff', 1.0);
-    back.position.set(-1.5, 1.8, -2.4);
-    scene.add(back);
-    scene.add(new THREE.HemisphereLight('#ffffff', '#3a3a44', 0.35));
+// same camera as the showcase: fov 28, distance 1.78, looking at the jersey centre
+const cam = new THREE.PerspectiveCamera(28, W / H, 0.1, 20);
+const dist = +(q.get('dist') || 1.78), pitch = +(q.get('pitch') || 0.03);
+cam.position.set(0, pitch * dist / 1.78, dist);
+cam.lookAt(0, -0.005, 0);
 
-    const cam = new THREE.PerspectiveCamera(26, W / H, 0.05, 20);
-    cam.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
-    cam.lookAt(0, -0.005, 0);
-
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.ShadowMaterial({ opacity: 0.3 }));
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.42;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    const t0 = performance.now();
-    new GLTFLoader().load(`/models/jerseys/${team}.glb`, async (gltf) => {
-      const root = gltf.scene;
-      let tris = 0, meshes = 0;
-      root.traverse((o) => {
-        if (o.isMesh) {
-          meshes++; tris += o.geometry.index.count / 3;
-          o.castShadow = true; o.receiveShadow = true;
-          if (o.material.map) o.material.map.anisotropy = 8;
-        }
-      });
-      scene.add(root);
-      try { await document.fonts.load('64px "Alfa Slab One"'); } catch (e) { }
-      if (q.get('name') !== null || q.get('number') !== null)
-        updatePlayerDetails(root, q.get('name') || '', q.get('number') || '', { renderer });
-      renderer.render(scene, cam);
-      window.INFO = { team, meshes, tris, ms: Math.round(performance.now() - t0) };
-      // batch mode: render several yaw angles and hand each frame to the local save server
-      const save = q.get('save');
-      if (save) {
-        const views = (q.get('views') || 'front:0').split(',').map((s) => s.split(':'));
-        for (const [label, deg] of views) {
-          const a = THREE.MathUtils.degToRad(+deg);
-          cam.position.set(Math.sin(a) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(a) * Math.cos(pitch) * dist);
-          cam.lookAt(0, -0.005, 0);
-          renderer.render(scene, cam);
-          await fetch(`${save}/save?file=${team}_${label}.png`, { method: 'POST', body: renderer.domElement.toDataURL('image/png') });
-        }
-        await fetch(`${save}/done?info=${encodeURIComponent(JSON.stringify(window.INFO))}`, { method: 'POST' });
-      }
-      document.title = 'READY ' + JSON.stringify(window.INFO);
-      window.READY = true;
-    }, undefined, (e) => {
-      document.title = 'ERROR ' + e.message;
-      if (q.get('save')) fetch(`${q.get('save')}/done?error=${encodeURIComponent(e.message)}`, { method: 'POST' });
+new GLTFLoader().load(`/models/hfpl_jersey_${team}.glb`, async (gltf) => {
+  const jersey = cloneJersey(gltf.scene);
+  jersey.traverse((o) => {
+    if (o.name === 'PlayerNumber') o.visible = false;
+    if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+  });
+  await applyPlayerInfo(jersey, { name: CAPTAIN[team], number: '' });
+  const group = new THREE.Group();
+  group.position.y = -0.02;
+  group.add(jersey);
+  scene.add(group);
+  const box = new THREE.Box3().setFromObject(jersey);
+  const info = { team, center: box.getCenter(new THREE.Vector3()).toArray().map((v) => +v.toFixed(3)),
+                 size: box.getSize(new THREE.Vector3()).toArray().map((v) => +v.toFixed(3)) };
+  // ?uvpass=1 : unlit texture-coordinate render (R = u, G = v) for mapping screen pixels to atlas texels
+  if (q.get('uvpass')) {
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    const uvMat = new THREE.ShaderMaterial({
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+      fragmentShader: 'varying vec2 vUv; void main(){ gl_FragColor = vec4(vUv, 1.0, 1.0); }',
     });
-  </script>
+    jersey.traverse((o) => { if (o.isMesh) o.material = o.material.name === 'JerseyPrint' ? uvMat : new THREE.MeshBasicMaterial({ color: 0x000000 }); });
+    scene.background = new THREE.Color(0x000000);
+    scene.environment = null;
+  }
+  const save = q.get('save');
+  if (save) {
+    for (const [label, deg] of (q.get('views') || 'front:0').split(',').map((s) => s.split(':'))) {
+      group.rotation.y = THREE.MathUtils.degToRad(+deg);     // the showcase rotates the jersey, not the camera
+      renderer.render(scene, cam);
+      await fetch(`${save}/save?file=${team}_${label}.png`, { method: 'POST', body: renderer.domElement.toDataURL('image/png') });
+    }
+    await fetch(`${save}/done?info=${encodeURIComponent(JSON.stringify(info))}`, { method: 'POST' });
+  } else {
+    renderer.render(scene, cam);
+  }
+  document.title = 'READY ' + JSON.stringify(info);
+}, undefined, (e) => {
+  document.title = 'ERROR ' + e.message;
+  if (q.get('save')) fetch(`${q.get('save')}/done?error=${encodeURIComponent(e.message)}`, { method: 'POST' });
+});
+</script>
 </body>
-
 </html>

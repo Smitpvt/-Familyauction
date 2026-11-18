@@ -5,7 +5,7 @@
 //
 //   node tools/jersey/render_previews.mjs                 # all teams
 //   node tools/jersey/render_previews.mjs sherle-warriors # one team
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -25,13 +25,8 @@ const BROWSERS = [
 const browser = process.env.BROWSER || BROWSERS.find(existsSync);
 if (!browser) throw new Error('No Edge/Chrome found; set BROWSER=/path/to/chrome');
 
-const base = process.env.PREVIEW_URL || 'http://localhost:5173/tools/jersey/preview.html';
-const TEAMS = {
-  'ratnagiri-royals': ['SAGAR', '07'],
-  'malgund-malla-giants': ['RAJESH', '45'],
-  'fotwadi-knight-riders': ['VIJAY', '13'],
-  'sherle-warriors': ['SHRI', '21'],
-};
+const base = process.env.PREVIEW_URL || 'http://localhost:5174/tools/jersey/preview.html';
+const TEAMS = { ratnagiri: [], malgund: [], kotwade: [], sherle: [] };
 const VIEWS = process.env.VIEWS || 'front:0,back:180,left:90,right:-90,three-quarter:35,three-quarter-back:215';
 const PORT = 5199;
 
@@ -57,8 +52,7 @@ await new Promise((r) => server.listen(PORT, r));
 const teams = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(TEAMS);
 let failed = 0;
 for (const team of teams) {
-  const [name, number] = TEAMS[team];
-  const url = `${base}?team=${team}&name=${name}&number=${number}&w=1000&h=1100` +
+  const url = `${base}?team=${team}&w=900&h=900` +
     `&save=http://localhost:${PORT}&views=${VIEWS}` + (process.env.EXTRA || '');
   const profile = mkdtempSync(path.join(os.tmpdir(), 'hfpl-render-'));
   const proc = spawn(browser, ['--headless=new', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
@@ -69,7 +63,16 @@ for (const team of teams) {
     const timer = setTimeout(() => resolve({ err: 'timeout' }), 180000);
     pending = (err, info) => { clearTimeout(timer); resolve({ err, info }); };
   });
-  proc.kill();
+  // kill the whole headless-browser tree (renderer/GPU children outlive a plain kill on Windows)
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/PID', String(proc.pid), '/T', '/F'], { stdio: 'ignore' });
+    // Edge detaches its real browser process from the launcher: stop everything using this run's profile
+    const leaf = path.basename(profile);
+    spawnSync('powershell', ['-NoProfile', '-Command',
+      `Get-CimInstance Win32_Process -Filter "Name='msedge.exe'" | Where-Object { $_.CommandLine -like '*${leaf}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`],
+    { stdio: 'ignore' });
+  }
+  else proc.kill('SIGKILL');
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* profile still locked */ }
   if (result.err) { failed++; console.log('  ERROR', result.err); } else console.log('  ', result.info);
 }

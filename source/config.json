@@ -1,0 +1,234 @@
+{
+ "malgund": {
+  "title": "Malgund Maha Giants",
+  "neck_left": [
+   [
+    392,
+    50
+   ],
+   [
+    395,
+    75
+   ],
+   [
+    400,
+    103
+   ],
+   [
+    413,
+    130
+   ],
+   [
+    430,
+    147
+   ],
+   [
+    446,
+    152
+   ]
+  ],
+  "neck_bottom": 153,
+  "text_region": [
+   930,
+   195,
+   1195,
+   490
+  ],
+  "fabric_patch": [
+   1030,
+   510,
+   1110,
+   590
+  ],
+  "default_name": "RAJESH",
+  "default_number": "45",
+  "rows": [
+   [
+    210,
+    280
+   ],
+   [
+    295,
+    475
+   ]
+  ],
+  "text_colors": {
+   "fill": "#1b2070",
+   "outline": "#f07a30"
+  }
+ },
+ "sherle": {
+  "title": "Sherle Sunrisers",
+  "neck_left": [
+   [
+    392,
+    48
+   ],
+   [
+    392,
+    75
+   ],
+   [
+    400,
+    103
+   ],
+   [
+    413,
+    130
+   ],
+   [
+    428,
+    142
+   ],
+   [
+    446,
+    149
+   ]
+  ],
+  "neck_bottom": 150,
+  "text_region": [
+   975,
+   195,
+   1205,
+   505
+  ],
+  "fabric_patch": [
+   1030,
+   520,
+   1110,
+   600
+  ],
+  "default_name": "SHRI",
+  "default_number": "21",
+  "rows": [
+   [
+    215,
+    280
+   ],
+   [
+    300,
+    495
+   ]
+  ],
+  "text_colors": {
+   "fill": "#141010",
+   "outline": "#f2661e"
+  }
+ },
+ "ratnagiri": {
+  "title": "Ratnagiri Royals",
+  "neck_left": [
+   [
+    388,
+    43
+   ],
+   [
+    393,
+    77
+   ],
+   [
+    400,
+    103
+   ],
+   [
+    413,
+    127
+   ],
+   [
+    430,
+    135
+   ],
+   [
+    446,
+    138
+   ]
+  ],
+  "neck_bottom": 139,
+  "text_region": [
+   935,
+   195,
+   1205,
+   512
+  ],
+  "fabric_patch": [
+   1030,
+   530,
+   1110,
+   610
+  ],
+  "default_name": "SAGAR",
+  "default_number": "07",
+  "rows": [
+   [
+    210,
+    280
+   ],
+   [
+    300,
+    500
+   ]
+  ],
+  "text_colors": {
+   "fill": "#1c1a46",
+   "outline": "#e8227a"
+  }
+ },
+ "kotwade": {
+  "title": "Kotwade Knight Riders",
+  "neck_left": [
+   [
+    390,
+    33
+   ],
+   [
+    397,
+    77
+   ],
+   [
+    403,
+    110
+   ],
+   [
+    413,
+    120
+   ],
+   [
+    432,
+    125
+   ],
+   [
+    446,
+    127
+   ]
+  ],
+  "neck_bottom": 128,
+  "text_region": [
+   950,
+   160,
+   1185,
+   472
+  ],
+  "fabric_patch": [
+   1030,
+   480,
+   1110,
+   560
+  ],
+  "default_name": "VIJAY",
+  "default_number": "13",
+  "rows": [
+   [
+    175,
+    236
+   ],
+   [
+    265,
+    455
+   ]
+  ],
+  "text_colors": {
+   "fill": "#4a1468",
+   "outline": "#e2b043"
+  }
+ }
+}

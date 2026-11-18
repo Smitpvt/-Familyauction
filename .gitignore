@@ -72,6 +72,10 @@ lerna-debug.log*
 .tmp/
 *.tmp
 *.temp
+Downloads/
+**/Downloads/
+*.msi
+*.zip
 
 # ------------------------------------------------------------------------------
 # 6. Test coverage artifacts

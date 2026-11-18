@@ -4,7 +4,8 @@ import AdminPanel from './components/AdminPanel';
 import AdminLogin from './components/AdminLogin';
 import ResultsView from './components/ResultsView';
 import TeamReveal from './components/TeamReveal';
-import { Tv, Shield, ArrowRight, Trophy } from 'lucide-react';
+import JerseyShowcase from './components/JerseyShowcase';
+import { Tv, Shield, ArrowRight, Trophy, Shirt } from 'lucide-react';
 import { authAPI } from './services/api';
 import hfplLogo from './logo/HFPL logo-Photoroom.png';
 
@@ -89,7 +90,12 @@ export default function App() {
     return <AdminPanel onLogout={handleLogout} />;
   }
 
-  // Route 5: Home Hub (Minimal Black-and-White Family Auction Portal)
+  // Route 5: 3D Team Jersey Showcase (Official Match Kits & Captains)
+  if (currentPath === '/jersey') {
+    return <JerseyShowcase onBack={() => navigateTo('/')} />;
+  }
+
+  // Route 6: Home Hub (Minimal Black-and-White Family Auction Portal)
   return (
     <div className="min-h-screen bg-[#0c0d0e] text-white flex flex-col justify-between font-sans selection:bg-zinc-800">
       {/* Top Header */}
@@ -108,6 +114,14 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={() => navigateTo('/jersey')}
+            className="px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 font-semibold text-[11px] sm:text-xs transition flex items-center gap-1.5 sm:gap-2 shadow-sm"
+          >
+            <Shirt className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+            <span className="hidden min-[360px]:inline">3D Jerseys</span>
+            <span className="min-[360px]:hidden">Kits</span>
+          </button>
           <button
             onClick={() => navigateTo('/auction')}
             className="px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white hover:bg-zinc-200 text-black font-semibold text-[11px] sm:text-xs transition flex items-center gap-1.5 sm:gap-2 shadow-sm"
