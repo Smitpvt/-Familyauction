@@ -66,8 +66,8 @@ const AUCTION_RULES = [
     number: 5,
     title: 'Compulsory Players',
     titleMarathi: 'अनिवार्य खेळाडू',
-    english: 'Each team must include at least 2 women and 2 girls in its squad.',
-    marathi: 'प्रत्येक संघात किमान २ महिला आणि २ मुली असणे अनिवार्य आहे.'
+    english: 'Each team must include at least 2 women and 2 girls, and a minimum of 1 men or maximum of 2 men in each team.',
+    marathi: 'प्रत्येक संघात किमान २ महिला आणि २ मुली, तसेच किमान १ पुरुष किंवा कमाल २ पुरुष असणे अनिवार्य आहे.'
   },
   // Page 2: Rules 6 to 10
   {
@@ -102,8 +102,8 @@ const AUCTION_RULES = [
     number: 10,
     title: 'Audience Discipline',
     titleMarathi: 'शिस्त व नियम',
-    english: 'A fine of ₹100 will be imposed for shouting or causing disturbances during the auction.',
-    marathi: 'लिलावादरम्यान आरडाओरडा करणे किंवा गोंधळ घालणे यासाठी ₹१०० दंड आकारला जाईल.'
+    english: 'A fine of 100rs will be imposed for shouting or causing disturbances during the auction.',
+    marathi: 'लिलावादरम्यान आरडाओरडा करणे किंवा गोंधळ घालणे यासाठी १०० रुपये दंड आकारला जाईल.'
   }
 ];
 
