@@ -59,6 +59,21 @@ function iplSongPlugin(command) {
 export default defineConfig(({ command }) => ({
   plugins: [react(), iplSongPlugin(command)],
   assetsInclude: ['**/*.mp3', '**/*.mpeg'],
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/three')) {
+            return 'three-vendor';
+          }
+          if (id.includes('node_modules/@react-three')) {
+            return 'r3f-vendor';
+          }
+        }
+      }
+    }
+  },
   server: {
     port: 5173,
     host: true, // Listen on all local IP addresses so projector/phones can view

@@ -1,13 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import ProjectorDisplay from './components/ProjectorDisplay';
-import AdminPanel from './components/AdminPanel';
-import AdminLogin from './components/AdminLogin';
-import ResultsView from './components/ResultsView';
-import TeamReveal from './components/TeamReveal';
-import JerseyShowcase from './components/JerseyShowcase';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Tv, Shield, ArrowRight, Trophy, Shirt } from 'lucide-react';
 import { authAPI } from './services/api';
 import hfplLogo from './logo/HFPL logo-Photoroom.png';
+
+const ProjectorDisplay = lazy(() => import('./components/ProjectorDisplay'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const AdminLogin = lazy(() => import('./components/AdminLogin'));
+const ResultsView = lazy(() => import('./components/ResultsView'));
+const TeamReveal = lazy(() => import('./components/TeamReveal'));
+const JerseyShowcase = lazy(() => import('./components/JerseyShowcase'));
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen bg-[#0c0d0e] flex items-center justify-center text-white font-sans">
+      <div className="w-8 h-8 border-2 border-white/20 border-t-amber-400 rounded-full animate-spin" />
+    </div>
+  );
+}
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -57,12 +66,20 @@ export default function App() {
 
   // Route 1: Projector Auction Screen
   if (currentPath === '/auction') {
-    return <ProjectorDisplay />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <ProjectorDisplay />
+      </Suspense>
+    );
   }
 
   // Route 2: Results View
   if (currentPath === '/results') {
-    return <ResultsView />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <ResultsView />
+      </Suspense>
+    );
   }
 
   // Route 3: Cinematic Team Reveal
@@ -72,7 +89,11 @@ export default function App() {
     const searchParams = new URLSearchParams(window.location.search);
     const teamId = teamIdFromPath || searchParams.get('teamId');
 
-    return <TeamReveal teamId={teamId} onBack={() => navigateTo('/results')} />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <TeamReveal teamId={teamId} onBack={() => navigateTo('/results')} />
+      </Suspense>
+    );
   }
 
   // Route 4: Admin Console
@@ -84,15 +105,20 @@ export default function App() {
         </div>
       );
     }
-    if (!adminUser) {
-      return <AdminLogin onLoginSuccess={(user) => setAdminUser(user)} />;
-    }
-    return <AdminPanel onLogout={handleLogout} />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        {!adminUser ? <AdminLogin onLoginSuccess={(user) => setAdminUser(user)} /> : <AdminPanel onLogout={handleLogout} />}
+      </Suspense>
+    );
   }
 
   // Route 5: 3D Team Jersey Showcase (Official Match Kits & Captains)
   if (currentPath === '/jersey') {
-    return <JerseyShowcase onBack={() => navigateTo('/')} />;
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <JerseyShowcase onBack={() => navigateTo('/')} />
+      </Suspense>
+    );
   }
 
   // Route 6: Home Hub (Minimal Black-and-White Family Auction Portal)
