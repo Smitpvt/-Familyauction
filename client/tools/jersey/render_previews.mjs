@@ -52,7 +52,7 @@ await new Promise((r) => server.listen(PORT, r));
 const teams = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(TEAMS);
 let failed = 0;
 for (const team of teams) {
-  const url = `${base}?team=${team}&w=900&h=900` +
+  const url = `${base}?team=${team}&w=${process.env.W || 900}&h=${process.env.H || 900}` +
     `&save=http://localhost:${PORT}&views=${VIEWS}` + (process.env.EXTRA || '');
   const profile = mkdtempSync(path.join(os.tmpdir(), 'hfpl-render-'));
   const proc = spawn(browser, ['--headless=new', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',

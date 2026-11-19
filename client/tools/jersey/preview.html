@@ -50,13 +50,15 @@ for (const [p, i, c] of [[[-2.2, 1.8, -1.8], 0.9, '#ffffff'], [[0, 2.8, -2.5], 0
 // same camera as the showcase: fov 28, distance 1.78, looking at the jersey centre
 const cam = new THREE.PerspectiveCamera(28, W / H, 0.1, 20);
 const dist = +(q.get('dist') || 1.78), pitch = +(q.get('pitch') || 0.03);
-cam.position.set(0, pitch * dist / 1.78, dist);
-cam.lookAt(0, -0.005, 0);
+// optional close-up framing: lx/ly = look-at point, camera placed straight in front of it
+const lx = +(q.get('lx') || 0), ly = +(q.get('ly') || -0.005);
+cam.position.set(lx, q.get('ly') ? ly + pitch * 0.2 : pitch * dist / 1.78, dist);
+cam.lookAt(lx, ly, 0);
 
 new GLTFLoader().load(`/models/hfpl_jersey_${team}.glb`, async (gltf) => {
   const jersey = cloneJersey(gltf.scene);
   jersey.traverse((o) => {
-    if (o.name === 'PlayerNumber') o.visible = false;
+    if (o.name === 'PlayerNumber' || (q.get('noname') && o.name === 'PlayerName')) o.visible = false;
     if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
   });
   await applyPlayerInfo(jersey, { name: CAPTAIN[team], number: '' });
