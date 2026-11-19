@@ -204,12 +204,12 @@ function FourJerseysLineup({ hoveredIndex, onHoverIndex }) {
 // cam = camera position, look = camera target, rot/y/s = jersey yaw, height and scale.
 // The crest sits on the wearer's left chest (+X), the HFPL badge on the right sleeve (-X).
 const REVEAL_KEYS = [
-  { t: 2.5,  cam: [0, 0.02, 2.5],      look: [0, -0.01, 0],     rot: -1.6,           y: -0.55, s: 0.8 },  // entrance
-  { t: 3.9,  cam: [0, 0.03, 1.8],      look: [0, -0.01, 0],     rot: -0.12,          y: 0,     s: 1 },    // hero front
-  { t: 5.5,  cam: [0.13, 0.14, 0.98],  look: [0.08, 0.1, 0],    rot: 0.05,           y: 0,     s: 1 },    // crest close-up
-  { t: 7.1,  cam: [-0.16, 0.12, 1.02], look: [-0.13, 0.08, 0.15], rot: 0.9,          y: 0,     s: 1 },    // badge / sleeve close-up
-  { t: 8.9,  cam: [0, 0.12, 1.45],     look: [0, 0.04, 0],      rot: Math.PI,        y: 0,     s: 1 },    // back & collar
-  { t: 11.0, cam: [0, 0.03, 1.9],      look: [0, -0.01, 0],     rot: Math.PI * 2.15, y: 0,     s: 1 }     // wide 3/4 hero
+  { t: 2.5, cam: [0, 0.02, 2.5], look: [0, -0.01, 0], rot: -1.6, y: -0.55, s: 0.8 },  // entrance
+  { t: 3.9, cam: [0, 0.03, 1.8], look: [0, -0.01, 0], rot: -0.12, y: 0, s: 1 },    // hero front
+  { t: 5.5, cam: [0.13, 0.14, 0.98], look: [0.08, 0.1, 0], rot: 0.05, y: 0, s: 1 },    // crest close-up
+  { t: 7.1, cam: [-0.16, 0.12, 1.02], look: [-0.13, 0.08, 0.15], rot: 0.9, y: 0, s: 1 },    // badge / sleeve close-up
+  { t: 8.9, cam: [0, 0.12, 1.45], look: [0, 0.04, 0], rot: Math.PI, y: 0, s: 1 },    // back & collar
+  { t: 11.0, cam: [0, 0.03, 1.9], look: [0, -0.01, 0], rot: Math.PI * 2.15, y: 0, s: 1 }     // wide 3/4 hero
 ];
 const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const lerp3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
@@ -531,7 +531,7 @@ export default function JerseyShowcase({ onBack }) {
           colors: ['#e8227a', '#ffffff', '#f07a30']
         });
       }, 500);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   // Skip Intro handler: skips the 10-second opening and starts Sherle Sunrisers reveal
@@ -638,11 +638,10 @@ export default function JerseyShowcase({ onBack }) {
           <button
             onClick={toggleMute}
             title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition ${
-              !isMuted
-                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                : 'bg-white/[0.04] border-white/[0.08] text-zinc-400 hover:text-white'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition ${!isMuted
+              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              : 'bg-white/[0.04] border-white/[0.08] text-zinc-400 hover:text-white'
+              }`}
           >
             {!isMuted ? <Volume2 className="w-3.5 h-3.5 text-amber-400" /> : <VolumeX className="w-3.5 h-3.5" />}
             <span className="hidden min-[420px]:inline">{isMuted ? 'Muted' : 'Sound ON'}</span>
@@ -718,11 +717,10 @@ export default function JerseyShowcase({ onBack }) {
                     </span>
 
                     <h1
-                      className={`font-black tracking-tight uppercase drop-shadow-[0_8px_20px_rgba(0,0,0,0.8)] ${
-                        isClimax
-                          ? 'text-3xl sm:text-5xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-orange-400 py-1'
-                          : 'text-4xl sm:text-6xl md:text-7xl text-white'
-                      }`}
+                      className={`font-black tracking-tight uppercase drop-shadow-[0_8px_20px_rgba(0,0,0,0.8)] ${isClimax
+                        ? 'text-3xl sm:text-5xl md:text-6xl text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-orange-400 py-1'
+                        : 'text-4xl sm:text-6xl md:text-7xl text-white'
+                        }`}
                     >
                       {line.text}
                     </h1>
@@ -864,11 +862,10 @@ export default function JerseyShowcase({ onBack }) {
                   <button
                     onClick={handlePrevTeam}
                     disabled={currentTeamIndex === 0}
-                    className={`p-2 sm:p-2.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md pointer-events-auto transition ${
-                      currentTeamIndex === 0
-                        ? 'opacity-20 cursor-not-allowed'
-                        : 'hover:bg-white/10 text-white cursor-pointer'
-                    }`}
+                    className={`p-2 sm:p-2.5 rounded-full bg-black/40 border border-white/10 backdrop-blur-md pointer-events-auto transition ${currentTeamIndex === 0
+                      ? 'opacity-20 cursor-not-allowed'
+                      : 'hover:bg-white/10 text-white cursor-pointer'
+                      }`}
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
@@ -943,7 +940,7 @@ export default function JerseyShowcase({ onBack }) {
                   enablePan={false}
                   enableDamping
                   dampingFactor={0.06}
-                    minDistance={1.8}
+                  minDistance={1.8}
                   maxDistance={12}
                 />
                 <ContactShadows
@@ -968,11 +965,10 @@ export default function JerseyShowcase({ onBack }) {
                     onClick={() => handleInspectTeam(idx)}
                     onMouseEnter={() => setHoveredLineupIndex(idx)}
                     onMouseLeave={() => setHoveredLineupIndex(null)}
-                    className={`flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border backdrop-blur-md transition-all duration-200 cursor-pointer ${
-                      isHovered
-                        ? 'bg-white/[0.15] scale-105 shadow-xl text-white'
-                        : 'bg-black/50 hover:bg-white/[0.08] text-zinc-300'
-                    }`}
+                    className={`flex-1 sm:flex-none flex items-center justify-center sm:justify-start gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border backdrop-blur-md transition-all duration-200 cursor-pointer ${isHovered
+                      ? 'bg-white/[0.15] scale-105 shadow-xl text-white'
+                      : 'bg-black/50 hover:bg-white/[0.08] text-zinc-300'
+                      }`}
                     style={{
                       borderColor: isHovered ? t.theme.primary : 'rgba(255,255,255,0.1)'
                     }}
@@ -1121,11 +1117,10 @@ export default function JerseyShowcase({ onBack }) {
                       setTeamSubBeat(1);
                     }
                   }}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border transition-all duration-200 cursor-pointer ${
-                    isActive
-                      ? 'bg-white/[0.14] text-white shadow-lg'
-                      : 'bg-white/[0.03] hover:bg-white/[0.07] text-zinc-400 hover:text-zinc-200'
-                  }`}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border transition-all duration-200 cursor-pointer ${isActive
+                    ? 'bg-white/[0.14] text-white shadow-lg'
+                    : 'bg-white/[0.03] hover:bg-white/[0.07] text-zinc-400 hover:text-zinc-200'
+                    }`}
                   style={{
                     borderColor: isActive ? t.theme.primary : 'rgba(255,255,255,0.08)'
                   }}
@@ -1146,11 +1141,10 @@ export default function JerseyShowcase({ onBack }) {
           {/* 360 Spin Toggle Button */}
           <button
             onClick={() => setIsRotating((p) => !p)}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-medium transition ${
-              isRotating
-                ? 'bg-white/[0.12] border-white/20 text-white'
-                : 'bg-white/[0.04] border-white/[0.08] text-zinc-400 hover:text-white'
-            }`}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[11px] font-medium transition ${isRotating
+              ? 'bg-white/[0.12] border-white/20 text-white'
+              : 'bg-white/[0.04] border-white/[0.08] text-zinc-400 hover:text-white'
+              }`}
           >
             <RotateCcw className={`w-3 h-3 ${isRotating ? 'animate-spin' : ''}`} style={{ animationDuration: '9s' }} />
             <span>{isRotating ? 'Spinning 360°' : 'Spin Paused'}</span>

@@ -33,7 +33,7 @@ class SuspenseAudioManager {
   resume() {
     this.init();
     if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+      this.ctx.resume().catch(() => { });
     }
   }
 
@@ -89,7 +89,7 @@ class SuspenseAudioManager {
       this.ambSrc.connect(band); band.connect(air); air.connect(this.ambGain);
       this.ambGain.connect(this.ambBus); this.ambBus.connect(ctx.destination);
       this.ambSrc.start(t); this.ambLfo.start(t);
-    } catch {}
+    } catch { }
   }
 
   // crowd lifts for a moment (the reveal), then settles back
@@ -113,7 +113,7 @@ class SuspenseAudioManager {
       g.gain.setValueAtTime(g.gain.value, t);
       g.gain.linearRampToValueAtTime(0.0001, t + fade);
       src.stop(t + fade + 0.1); lfo.stop(t + fade + 0.1);
-    } catch {}
+    } catch { }
   }
 
   // Logo reveal: deep clean hit + bright airy shimmer chord + crowd lift
@@ -137,7 +137,7 @@ class SuspenseAudioManager {
       });
       this.playWhoosh(1.2, 0.12);
       this.swellStadium();
-    } catch {}
+    } catch { }
   }
 
   // Deep Sub-Bass Heartbeat / Cinematic Impact
@@ -179,7 +179,7 @@ class SuspenseAudioManager {
 
       snapOsc.start(t);
       snapOsc.stop(t + 0.08);
-    } catch {}
+    } catch { }
   }
 
   // Subtle airy whoosh for text line entry
@@ -218,7 +218,7 @@ class SuspenseAudioManager {
 
       noise.start(t);
       noise.stop(t + duration);
-    } catch {}
+    } catch { }
   }
 
   // Cinematic suspense ambient drone (running during the 10-second opening)
@@ -252,7 +252,7 @@ class SuspenseAudioManager {
 
       this.droneOsc1.start(t);
       this.droneOsc2.start(t);
-    } catch {}
+    } catch { }
   }
 
   stopSuspenseDrone() {
@@ -262,15 +262,15 @@ class SuspenseAudioManager {
       this.droneGain.gain.linearRampToValueAtTime(0.001, t + 0.8);
       setTimeout(() => {
         if (this.droneOsc1) {
-          try { this.droneOsc1.stop(); this.droneOsc1.disconnect(); } catch {}
+          try { this.droneOsc1.stop(); this.droneOsc1.disconnect(); } catch { }
           this.droneOsc1 = null;
         }
         if (this.droneOsc2) {
-          try { this.droneOsc2.stop(); this.droneOsc2.disconnect(); } catch {}
+          try { this.droneOsc2.stop(); this.droneOsc2.disconnect(); } catch { }
           this.droneOsc2 = null;
         }
       }, 900);
-    } catch {}
+    } catch { }
   }
 
   // Tension Riser (8.0s - 10.0s)
@@ -303,7 +303,7 @@ class SuspenseAudioManager {
 
       osc.start(t);
       osc.stop(t + duration + 0.1);
-    } catch {}
+    } catch { }
   }
 
   // Climax Reveal Horn / Impact (at 10.0s transition to jerseys)
@@ -330,7 +330,7 @@ class SuspenseAudioManager {
         osc.stop(t + 2.5);
       });
       this.playImpact(40, 2.0, 0.9);
-    } catch {}
+    } catch { }
   }
 
   // Triumphant Anthem (fades in as team reveals start and for final reveal)
@@ -342,10 +342,10 @@ class SuspenseAudioManager {
       this.anthemAudio.volume = 0;
       const p = this.anthemAudio.play();
       if (p !== undefined) {
-        p.catch(() => {});
+        p.catch(() => { });
       }
       this.fadeAnthem(targetVolume, fadeDuration);
-    } catch {}
+    } catch { }
   }
 
   fadeAnthem(targetVol, duration = 1.5) {
@@ -377,7 +377,7 @@ class SuspenseAudioManager {
       try {
         this.anthemAudio.pause();
         this.anthemAudio.currentTime = 0;
-      } catch {}
+      } catch { }
     }
   }
 }

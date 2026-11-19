@@ -24,7 +24,7 @@ const ORDER = ['sherle', 'ratnagiri', 'kotwade', 'malgund'];
 const INTRO_LINES = ['A NEW SEASON.', 'A NEW IDENTITY.', 'FOUR TEAMS.', 'ONE PASSION.', 'INTRODUCING HFPL 2027.'];
 
 const CAPTIONS = [
-  { from: 8.0,  to: 12.0, text: 'A NEW LOOK.' },
+  { from: 8.0, to: 12.0, text: 'A NEW LOOK.' },
   { from: 13.5, to: 17.0, text: 'A NEW IDENTITY.' },
   { from: 19.0, to: 23.0, text: 'EVERY DETAIL. CRAFTED.' },
   { from: 27.5, to: 31.5, text: 'MADE TO REPRESENT.' },
@@ -34,19 +34,19 @@ const CAPTIONS = [
 
 // Per-team camera & jersey choreography
 const SHOTS = [
-  { t: 0.0,  cam: [0, 0.8, 1.9],       look: [0, 0.82, -2.4],     rot: -1.4,           y: 1.7 },
-  { t: 3.5,  cam: [0, 0.72, 1.3],      look: [0, 0.78, -2.4],     rot: -1.3,           y: 1.6 },
-  { t: 7.0,  cam: [0, 0.1, 2.55],      look: [0, 0.1, -0.4],      rot: -0.08,          y: 0 },   // wide front
-  { t: 12.5, cam: [0, 0.08, 1.95],     look: [0, 0.06, 0],        rot: 0.05,           y: 0 },   // slow push-in
-  { t: 17.5, cam: [0.17, 0.14, 0.98],  look: [0.08, 0.1, 0],      rot: 0.06,           y: 0 },   // chest crest
-  { t: 22.5, cam: [0.12, 0.12, 0.9],   look: [0.08, 0.1, 0],      rot: 0.14,           y: 0 },   // crest hold
-  { t: 27.0, cam: [-0.2, 0.11, 1.02],  look: [-0.13, 0.08, 0.15], rot: 0.9,            y: 0 },   // sleeve patch
-  { t: 31.5, cam: [-0.24, 0.09, 0.98], look: [-0.13, 0.08, 0.15], rot: 1.0,            y: 0 },   // patch hold
-  { t: 36.0, cam: [0.08, -0.3, 1.5],   look: [0, 0.12, 0],        rot: Math.PI,        y: 0 },   // back reveal
-  { t: 40.5, cam: [0, 0.07, 1.15],     look: [0, 0.06, 0],        rot: Math.PI,        y: 0 },   // HFPL / 27 close-up
-  { t: 44.5, cam: [-0.05, 0.05, 1.3],  look: [0, 0.05, 0],        rot: Math.PI + 0.12, y: 0 },   // back hold
-  { t: 49.0, cam: [0, 0.05, 1.8],      look: [0, 0.02, 0],        rot: Math.PI * 1.5,  y: 0 },   // profile
-  { t: 55.0, cam: [0.2, 0.1, 2.35],    look: [0, 0.04, 0],        rot: Math.PI * 2.25, y: 0 },   // wide turn
+  { t: 0.0, cam: [0, 0.8, 1.9], look: [0, 0.82, -2.4], rot: -1.4, y: 1.7 },
+  { t: 3.5, cam: [0, 0.72, 1.3], look: [0, 0.78, -2.4], rot: -1.3, y: 1.6 },
+  { t: 7.0, cam: [0, 0.1, 2.55], look: [0, 0.1, -0.4], rot: -0.08, y: 0 },   // wide front
+  { t: 12.5, cam: [0, 0.08, 1.95], look: [0, 0.06, 0], rot: 0.05, y: 0 },   // slow push-in
+  { t: 17.5, cam: [0.17, 0.14, 0.98], look: [0.08, 0.1, 0], rot: 0.06, y: 0 },   // chest crest
+  { t: 22.5, cam: [0.12, 0.12, 0.9], look: [0.08, 0.1, 0], rot: 0.14, y: 0 },   // crest hold
+  { t: 27.0, cam: [-0.2, 0.11, 1.02], look: [-0.13, 0.08, 0.15], rot: 0.9, y: 0 },   // sleeve patch
+  { t: 31.5, cam: [-0.24, 0.09, 0.98], look: [-0.13, 0.08, 0.15], rot: 1.0, y: 0 },   // patch hold
+  { t: 36.0, cam: [0.08, -0.3, 1.5], look: [0, 0.12, 0], rot: Math.PI, y: 0 },   // back reveal
+  { t: 40.5, cam: [0, 0.07, 1.15], look: [0, 0.06, 0], rot: Math.PI, y: 0 },   // HFPL / 27 close-up
+  { t: 44.5, cam: [-0.05, 0.05, 1.3], look: [0, 0.05, 0], rot: Math.PI + 0.12, y: 0 },   // back hold
+  { t: 49.0, cam: [0, 0.05, 1.8], look: [0, 0.02, 0], rot: Math.PI * 1.5, y: 0 },   // profile
+  { t: 55.0, cam: [0.2, 0.1, 2.35], look: [0, 0.04, 0], rot: Math.PI * 2.25, y: 0 },   // wide turn
 ];
 
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -89,7 +89,7 @@ function beatAt(t, mode = 'film') {
     const l = t - INTRO;
     return {
       phase: 'logo',
-      cue: LOGO_CUES.filter((c) => l >= c).length,          // drives the sound design
+      cue: LOGO_CUES.filter((c) => l >= c).length,
       flash: l >= REVEAL_AT && l < REVEAL_AT + 0.7,
       title: l >= REVEAL_AT + 0.8 && l < 22.6,
       titleOut: l >= 21.9,
@@ -683,7 +683,7 @@ function SceneContent({ film, teams, onReady }) {
 }
 
 // ─── DOM Overlays & Cinematic Typography ─────────────────────────────────────────
-const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Michroma&family=Share+Tech+Mono&display=swap';
+const FONT_HREF = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Michroma&family=Montserrat:wght@500;600;700;800&family=Share+Tech+Mono&display=swap';
 const CSS = `
 .hfl-root{width:100vw;height:100vh;height:100dvh}
 .hfl-title{font-family:'Michroma','Poppins',sans-serif;letter-spacing:.14em;text-transform:uppercase;font-weight:400}
@@ -693,14 +693,62 @@ const CSS = `
 @keyframes hflIn{0%{opacity:0;transform:translateY(8px);filter:blur(4px)}100%{opacity:1;transform:none;filter:none}}
 @keyframes hflOut{from{opacity:1;filter:none}to{opacity:0;filter:blur(4px);transform:translateY(-6px)}}
 .hfl-fade{animation:hflFade 0.8s ease both}
-.hfl-flash{background:radial-gradient(ellipse at 50% 42%,rgba(255,246,228,.85),rgba(255,214,150,.35) 45%,transparent 75%);animation:hflFlash .7s ease-out both}
-@keyframes hflFlash{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
-.hfl-gold{background:linear-gradient(180deg,#fff6df 0%,#f5d27a 55%,#c9932f 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 22px rgba(255,190,90,.35))}
-.hfl-track{animation:hflTrack 2.0s cubic-bezier(.16,.8,.2,1) both}
-@keyframes hflTrack{from{opacity:0;letter-spacing:.45em;filter:blur(4px)}to{opacity:1;letter-spacing:.2em;filter:none}}
-.hfl-line{animation:hflLine 1.8s cubic-bezier(.16,.8,.2,1) .3s both}@keyframes hflLine{from{opacity:0;transform:scaleX(0)}to{opacity:1;transform:none}}@keyframes hflFade{from{opacity:0}to{opacity:1}}
 .hfl-black{transition:opacity .8s ease}
-.hfl-rise{animation:hflRise 1.2s cubic-bezier(.16,1,.3,1) both}@keyframes hflRise{from{opacity:0;transform:translateY(12px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+.hfl-rise{animation:hflRise 1.2s cubic-bezier(.16,1,.3,1) both}
+@keyframes hflRise{from{opacity:0;transform:translateY(12px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+@keyframes hflFade{from{opacity:0}to{opacity:1}}
+
+/* Minimalist Logo Title Reveal Typography */
+.hfl-logo-title-in {
+  animation: hflLogoTitleIn 1.0s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes hflLogoTitleIn {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+.hfl-logo-title-out {
+  animation: hflLogoTitleOut 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes hflLogoTitleOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+    filter: blur(4px);
+  }
+}
+.hfl-logo-subline-left {
+  background: linear-gradient(to right, transparent 0%, rgba(243, 236, 225, 0.35) 60%, rgba(243, 236, 225, 0.7) 100%);
+  transform-origin: right center;
+  animation: hflSublineIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+.hfl-logo-subline-right {
+  background: linear-gradient(to left, transparent 0%, rgba(243, 236, 225, 0.35) 60%, rgba(243, 236, 225, 0.7) 100%);
+  transform-origin: left center;
+  animation: hflSublineIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+@keyframes hflSublineIn {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
 `;
 
 function Glitch({ text, out = false, className = '' }) {
@@ -713,15 +761,15 @@ function enterFullscreen() {
   const req = el.requestFullscreen || el.webkitRequestFullscreen;
   try {
     const p = req && req.call(el, { navigationUI: 'hide' });
-    if (p && p.catch) p.catch(() => {});
-  } catch {}
+    if (p && p.catch) p.catch(() => { });
+  } catch { }
 }
 function exitFullscreen() {
   const ex = document.exitFullscreen || document.webkitExitFullscreen;
   try {
     const p = isFullscreen() && ex && ex.call(document);
-    if (p && p.catch) p.catch(() => {});
-  } catch {}
+    if (p && p.catch) p.catch(() => { });
+  } catch { }
 }
 
 // ─── Main Film Component ─────────────────────────────────────────────────────
@@ -905,12 +953,22 @@ export default function JerseyLaunchFilm({ teams, onBack, onExplore }) {
         </div>
       )}
 
-      {/* HFPL logo reveal: impact flash + title */}
+      {/* HFPL logo reveal: impact flash + new minimal premium title design */}
       {beat.phase === 'logo' && beat.flash && <div className="hfl-flash absolute inset-0 pointer-events-none" />}
       {beat.phase === 'logo' && beat.title && (
-        <div className={`absolute inset-x-0 bottom-[9vh] flex flex-col items-center pointer-events-none px-4 ${beat.titleOut ? 'hfl-out' : ''}`}>
-          <span className="hfl-title hfl-track text-3xl sm:text-5xl md:text-6xl hfl-gold">HFPL 2027</span>
-          <span className="hfl-line mt-4 h-px w-40 sm:w-64 bg-gradient-to-r from-transparent via-amber-300/80 to-transparent" />
+        <div className={`absolute inset-x-0 bottom-[8vh] sm:bottom-[10vh] flex flex-col items-center pointer-events-none px-4 z-20 ${beat.titleOut ? 'hfl-logo-title-out' : 'hfl-logo-title-in'}`}>
+          <div className="overflow-hidden">
+            <h1 className="font-['Michroma','Bebas_Neue',sans-serif] text-2xl sm:text-4xl md:text-5xl text-[#f3ece1] tracking-[0.32em] pl-[0.32em] font-bold leading-tight drop-shadow-[0_4px_20px_rgba(0,0,0,0.85)]">
+              HFPL 2027
+            </h1>
+          </div>
+          <div className="mt-2.5 sm:mt-3 flex items-center justify-center gap-2.5 sm:gap-4 w-full">
+            <div className="hfl-logo-subline-left w-10 sm:w-20 md:w-28 h-[1px]" />
+            <span className="font-['Michroma','Montserrat',sans-serif] text-[9px] sm:text-xs md:text-sm text-[#f3ece1]/85 tracking-[0.42em] pl-[0.42em] uppercase font-semibold whitespace-nowrap drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
+              OFFICIAL JERSEYS
+            </span>
+            <div className="hfl-logo-subline-right w-10 sm:w-20 md:w-28 h-[1px]" />
+          </div>
         </div>
       )}
 
@@ -970,27 +1028,34 @@ export default function JerseyLaunchFilm({ teams, onBack, onExplore }) {
         </div>
       )}
 
-      {/* Start screen: clean, minimal, premium */}
+      {/* Start screen: clean, minimal, luxury charcoal & ivory matching reference */}
       {!started && (
-        <div className="absolute inset-0 bg-black flex flex-col items-center justify-center px-6 text-center z-50">
-          <img
-            src={hfplEmblem}
-            alt="HFPL 2027"
-            className="w-24 sm:w-32 h-auto mb-6 drop-shadow-[0_0_35px_rgba(255,140,40,0.35)]"
-          />
-          <h1 className="hfl-title text-2xl sm:text-4xl md:text-5xl text-white tracking-[0.25em]">
-            HFPL 2027
-          </h1>
-          <p className="hfl-mono text-xs sm:text-sm text-orange-400 tracking-[0.4em] uppercase mt-2">
-            OFFICIAL JERSEY REVEAL
-          </p>
-          <button
-            onClick={begin}
-            disabled={!ready}
-            className="hfl-title mt-10 px-8 sm:px-10 py-3.5 sm:py-4 text-xs sm:text-sm text-black bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 hover:brightness-110 disabled:opacity-40 transition font-bold tracking-widest shadow-[0_0_30px_rgba(251,191,36,0.3)] cursor-pointer rounded-full"
-          >
-            {ready ? "START REVEAL" : `LOADING ${Math.round(progress)}%`}
-          </button>
+        <div className="absolute inset-0 bg-[#0d0a08] flex flex-col items-center justify-center px-6 text-center z-50">
+          <div className="hfl-light-shaft absolute inset-0 pointer-events-none" />
+          <div className="relative z-10 flex flex-col items-center">
+            <img
+              src={hfplEmblem}
+              alt="HFPL 2027"
+              className="w-24 sm:w-32 md:w-36 h-auto mb-6 drop-shadow-[0_10px_25px_rgba(0,0,0,0.6)]"
+            />
+            <h1 className="font-['Michroma',sans-serif] text-2xl sm:text-4xl md:text-5xl text-[#f3ece1] tracking-[0.32em] pl-[0.32em] font-bold">
+              HFPL 2027
+            </h1>
+            <div className="mt-3.5 flex items-center justify-center gap-3 w-full">
+              <div className="w-8 sm:w-16 h-[1px] bg-gradient-to-r from-transparent via-[rgba(243,236,225,0.4)] to-[rgba(243,236,225,0.7)]" />
+              <span className="font-['Michroma',sans-serif] text-[10px] sm:text-xs text-[#f3ece1]/80 tracking-[0.42em] pl-[0.42em] uppercase font-semibold">
+                OFFICIAL JERSEYS
+              </span>
+              <div className="w-8 sm:w-16 h-[1px] bg-gradient-to-l from-transparent via-[rgba(243,236,225,0.4)] to-[rgba(243,236,225,0.7)]" />
+            </div>
+            <button
+              onClick={begin}
+              disabled={!ready}
+              className="mt-10 px-8 sm:px-10 py-3.5 sm:py-4 text-xs sm:text-sm text-[#0d0a08] bg-[#f3ece1] hover:bg-white active:scale-98 disabled:opacity-40 transition font-['Michroma',sans-serif] font-bold tracking-[0.2em] shadow-[0_4px_24px_rgba(0,0,0,0.4)] cursor-pointer rounded-full"
+            >
+              {ready ? "START REVEAL" : `LOADING ${Math.round(progress)}%`}
+            </button>
+          </div>
         </div>
       )}
 
