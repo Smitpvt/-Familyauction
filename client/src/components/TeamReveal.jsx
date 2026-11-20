@@ -32,8 +32,8 @@ const getTeamPosterTheme = (team) => {
   const name = (team?.name || '').toLowerCase();
 
   // 1. Kotawade Knight Riders (Royal Deep Purple & Championship Gold)
-  // Vertical shield logo (1009 x 1559) — scaled up by ~24%
-  if (code === 'KKR' || name.includes('knight') || name.includes('kotawade')) {
+  // Vertical shield logo — scaled up by ~24%
+  if (code === 'KKR' || name.includes('knight') || name.includes('kotawade') || name.includes('kotwade')) {
     return {
       bgDark: '#23043b', // Deep royal purple
       accent: '#f3ba2f', // Championship gold

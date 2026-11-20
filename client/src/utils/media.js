@@ -13,6 +13,7 @@ export const TEAM_LOGOS = {
   'MMG': mmgLogo,
   'SS': ssLogo,
   'Kotawade Knight Riders': kkrLogo,
+  'Kotwade Knight Riders': kkrLogo,
   'Ratnagiri Royals': rrLogo,
   'Malgund Maha Giants': mmgLogo,
   'Sherle Sunrisers': ssLogo
