@@ -51,7 +51,7 @@ export default function AdminPanel({ onLogout }) {
 
   // Forms
   const [playerForm, setPlayerForm] = useState({
-    name: '', category: 'All-rounder', battingStyle: 'Right Hand Bat',
+    name: '', gender: 'Male', category: 'All-rounder', battingStyle: 'Right Hand Bat',
     bowlingStyle: 'Right Arm Medium', basePrice: 500, photo: '',
     description: '', roundId: '', orderInRound: 1, matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0
   });
@@ -1797,7 +1797,7 @@ export default function AdminPanel({ onLogout }) {
                       const initialRoundId = (selectedSetFilter !== 'ALL' && selectedSetFilter) ? selectedSetFilter : (rounds[0]?._id || '');
                       const defaultSeq = getNextSequenceForRound(initialRoundId);
                       setPlayerForm({
-                        name: '', category: 'All-rounder', battingStyle: 'Right Hand Bat',
+                        name: '', gender: 'Male', category: 'All-rounder', battingStyle: 'Right Hand Bat',
                         bowlingStyle: 'Right Arm Medium', basePrice: 500, photo: '',
                         description: '', roundId: initialRoundId, orderInRound: defaultSeq,
                         matches: 0, runs: 0, wickets: 0, highestScore: 0, strikeRate: 0
@@ -1901,6 +1901,7 @@ export default function AdminPanel({ onLogout }) {
                     <tr>
                       <th className="p-3.5 whitespace-nowrap">Seq / Order</th>
                       <th className="p-3.5">Player</th>
+                      <th className="p-3.5">Gender</th>
                       <th className="p-3.5">Category</th>
                       <th className="p-3.5">Set</th>
                       <th className="p-3.5">Base Price</th>
@@ -1970,6 +1971,15 @@ export default function AdminPanel({ onLogout }) {
                           </div>
                         </td>
                         <td className="p-3.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            p.gender === 'Female'
+                              ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                              : 'bg-zinc-100 text-zinc-700 border border-zinc-200'
+                          }`}>
+                            {p.gender || 'Male'}
+                          </span>
+                        </td>
+                        <td className="p-3.5">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#f4f4f5] text-[#181818] border border-[#e4e4e7] ">
                             {p.category}
                           </span>
@@ -2024,6 +2034,7 @@ export default function AdminPanel({ onLogout }) {
                               setEditingPlayer(p);
                               setPlayerForm({
                                 name: p.name,
+                                gender: p.gender || 'Male',
                                 category: p.category,
                                 battingStyle: p.battingStyle,
                                 bowlingStyle: p.bowlingStyle,
@@ -2057,7 +2068,7 @@ export default function AdminPanel({ onLogout }) {
                     ))}
                     {filteredPlayers.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="p-8 text-center text-[#64748B] font-medium">
+                        <td colSpan={9} className="p-8 text-center text-[#64748B] font-medium">
                           No players found matching the selected filters.
                         </td>
                       </tr>
@@ -2297,7 +2308,19 @@ export default function AdminPanel({ onLogout }) {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[#181818] font-bold uppercase mb-1">Gender *</label>
+                  <select
+                    value={playerForm.gender || 'Male'}
+                    onChange={(e) => setPlayerForm({ ...playerForm, gender: e.target.value })}
+                    className="w-full bg-[#f4f4f5] border border-[#e4e4e7] rounded p-2.5 text-[#181818] focus:outline-none focus:border-[#18181b] font-medium"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-[#181818] font-bold uppercase mb-1">Category *</label>
                   <select
