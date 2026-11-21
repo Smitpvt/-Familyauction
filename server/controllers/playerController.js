@@ -69,7 +69,6 @@ exports.createPlayer = async (req, res) => {
   try {
     const {
       name,
-      gender,
       category,
       battingStyle,
       bowlingStyle,
@@ -98,7 +97,6 @@ exports.createPlayer = async (req, res) => {
 
     const player = new Player({
       name: name.trim(),
-      gender: gender === 'Female' ? 'Female' : 'Male',
       category: category || 'All-rounder',
       battingStyle: battingStyle || 'Right Hand Bat',
       bowlingStyle: bowlingStyle || 'Right Arm Medium',
@@ -144,7 +142,6 @@ exports.updatePlayer = async (req, res) => {
   try {
     const {
       name,
-      gender,
       category,
       battingStyle,
       bowlingStyle,
@@ -165,7 +162,6 @@ exports.updatePlayer = async (req, res) => {
     const isRoundChanged = oldRoundId !== newRoundId;
 
     if (name) player.name = name.trim();
-    if (gender && ['Male', 'Female'].includes(gender)) player.gender = gender;
     if (category) player.category = category;
     if (battingStyle !== undefined) player.battingStyle = battingStyle;
     if (bowlingStyle !== undefined) player.bowlingStyle = bowlingStyle;
@@ -496,7 +492,6 @@ exports.bulkImportPlayers = async (req, res) => {
       if (!p.name) continue;
       const doc = new Player({
         name: p.name.trim(),
-        gender: p.gender === 'Female' ? 'Female' : 'Male',
         category: p.category || 'All-rounder',
         battingStyle: p.battingStyle || 'Right Hand Bat',
         bowlingStyle: p.bowlingStyle || 'Right Arm Medium',
