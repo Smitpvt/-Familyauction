@@ -1272,7 +1272,7 @@ export default function ProjectorDisplay() {
               <div
                 className={`relative w-full h-auto md:h-full rounded-[22px] sm:rounded-[28px] border overflow-hidden flex flex-col md:flex-row items-center transition-all duration-300 ${
                   isFullscreen
-                    ? 'p-6 sm:p-10 lg:p-12 xl:p-14 gap-6 sm:gap-8 lg:gap-12 xl:gap-16 justify-between'
+                    ? 'p-6 sm:p-10 lg:p-12 xl:p-14 gap-6 sm:gap-8 lg:gap-10 xl:gap-14'
                     : 'p-4 sm:p-8 md:p-10 lg:p-12 gap-5 sm:gap-8 lg:gap-14'
                 } shadow-2xl ${
                   status === 'sold'
@@ -1426,44 +1426,44 @@ export default function ProjectorDisplay() {
                 </div>
 
                 {/* 2, 3, 4: PLAYER DETAILS (Name, Designation, Base Price, Current Bid) */}
-                <div className={`flex-1 flex flex-col justify-center text-left transition-all duration-300 z-10 w-full ${
-                  isFullscreen ? 'space-y-4 sm:space-y-5 lg:space-y-7' : 'space-y-3 sm:space-y-4 lg:space-y-6'
+                <div className={`flex-1 flex flex-col justify-center text-left transition-all duration-300 z-10 w-full min-w-0 ${
+                  isFullscreen ? 'space-y-3 sm:space-y-4 lg:space-y-5 xl:space-y-6' : 'space-y-2.5 sm:space-y-3.5 lg:space-y-4'
                 }`}>
                   
                   {/* 3. PLAYER DESIGNATION (Batter, Bowler, All-rounder, Wicketkeeper) */}
                   <div>
                     <div className="inline-flex items-center gap-2">
                       {status === 'bidding' ? (
-                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2 sm:w-2.5 h-2 sm:h-2.5'} rounded-full bg-emerald-500 animate-pulse shrink-0`} />
+                        <span className={`${isFullscreen ? 'w-2.5 h-2.5' : 'w-2 h-2'} rounded-full bg-emerald-500 animate-pulse shrink-0`} />
                       ) : status === 'sold' ? (
-                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2 sm:w-2.5 h-2 sm:h-2.5'} rounded-full bg-red-500 shrink-0`} />
+                        <span className={`${isFullscreen ? 'w-2.5 h-2.5' : 'w-2 h-2'} rounded-full bg-red-500 shrink-0`} />
                       ) : (
-                        <span className={`${isFullscreen ? 'w-3 h-3' : 'w-2 sm:w-2.5 h-2 sm:h-2.5'} rounded-full bg-amber-400 shadow-[0_0_10px_#f59e0b] shrink-0`} />
+                        <span className={`${isFullscreen ? 'w-2.5 h-2.5' : 'w-2 h-2'} rounded-full bg-amber-400 shadow-[0_0_10px_#f59e0b] shrink-0`} />
                       )}
-                      <span className={`${isFullscreen ? 'text-2xl sm:text-3xl lg:text-4xl' : 'text-lg sm:text-2xl lg:text-3xl'} font-medium tracking-wide text-zinc-100`}>
+                      <span className={`${isFullscreen ? 'text-xl sm:text-2xl lg:text-3xl' : 'text-base sm:text-xl lg:text-2xl'} font-medium tracking-wide text-zinc-100`}>
                         {player.category}
                       </span>
                     </div>
                     {/* Gold accent underline beneath designation */}
                     {status !== 'sold' && (
-                      <div className={`${isFullscreen ? 'w-20 h-[3px]' : 'w-12 sm:w-14 h-[2px]'} bg-gradient-to-r from-amber-400 via-amber-300 to-transparent rounded-full mt-1.5 sm:mt-2`} />
+                      <div className={`${isFullscreen ? 'w-16 h-[2.5px]' : 'w-12 h-[2px]'} bg-gradient-to-r from-amber-400 via-amber-300 to-transparent rounded-full mt-1.5 sm:mt-2`} />
                     )}
                   </div>
 
                   {/* 2. PLAYER NAME (Prominent, High-Contrast Typography) */}
-                  <div className="w-full">
+                  <div className="w-full min-w-0">
                     <h2 className={`${
                       isFullscreen
-                        ? 'text-4xl sm:text-6xl lg:text-8xl xl:text-9xl'
-                        : 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl'
-                    } font-black tracking-tight text-white leading-tight drop-shadow-sm break-words`}>
+                        ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl'
+                        : 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl'
+                    } font-black tracking-tight text-white leading-[1.05] sm:leading-[1.08] drop-shadow-sm break-words text-left`}>
                       {player.name}
                     </h2>
                   </div>
 
                   {/* Luminous Gold Horizontal Divider with Center Glow Flare */}
                   {status !== 'sold' ? (
-                    <div className={`relative w-full ${isFullscreen ? 'my-2 sm:my-5 xl:my-6' : 'my-1 sm:my-2'} flex items-center justify-center`}>
+                    <div className={`relative w-full ${isFullscreen ? 'my-2 sm:my-3 lg:my-4' : 'my-1 sm:my-2'} flex items-center justify-center`}>
                       <div className="absolute inset-x-8 h-3 bg-gradient-to-r from-transparent via-amber-400/30 to-transparent blur-md pointer-events-none" />
                       <div className="relative w-full h-[1.5px] bg-gradient-to-r from-transparent via-amber-400/80 to-transparent" />
                     </div>
